@@ -1,40 +1,65 @@
-const modelName = import.meta.env.VITE_GEMINI_MODEL || 'gemini-1.5-flash';
+import { GoogleGenAI } from '@google/genai';
+
+const modelName = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-flash';
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
+const missingKeyMessage = 'Gemini API key is not configured. Please add VITE_GEMINI_API_KEY to your .env file.';
 
 export type GeminiPrompt = {
   prompt: string;
   language?: 'hi' | 'en';
+  history?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
 };
 
-function fallbackResponse(prompt: string) {
-  return [
-    'I can help with career guidance, schemes, resumes, student support, and farmer support.',
-    'If you add your Gemini API key, the assistant will respond with live AI output.',
-    `You asked: ${prompt}`
-  ].join(' ');
-}
-
-export async function generateGeminiText({ prompt, language = 'en' }: GeminiPrompt) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
+function getClient() {
   if (!apiKey) {
-    return fallbackResponse(prompt);
+    throw new Error(missingKeyMessage);
   }
 
-  const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const client = new GoogleGenerativeAI(apiKey);
-  const model = client.getGenerativeModel({ model: modelName });
+  return new GoogleGenAI({ apiKey });
+}
+
+function validatePrompt(prompt: string) {
+  const cleanPrompt = prompt.trim();
+
+  if (!cleanPrompt) {
+    throw new Error('Please enter a prompt before sending it to Gemini.');
+  }
+
+  if (!apiKey) {
+    throw new Error(missingKeyMessage);
+  }
+
+  return cleanPrompt;
+}
+
+export async function generateGeminiText({ prompt, language = 'hi', history = [] }: GeminiPrompt) {
+  const cleanPrompt = validatePrompt(prompt);
+  const client = getClient();
+  const conversationText = history
+    .map((item) => `${item.role === 'assistant' ? 'Assistant' : item.role === 'system' ? 'System' : 'User'}: ${item.content}`)
+    .join('\n');
   const instruction = language === 'hi'
     ? 'उत्तर हिंदी में दें, सरल और सहायक रहें।'
     : 'Respond in clear, concise English with practical guidance.';
+  const content = conversationText ? `${conversationText}\nUser: ${cleanPrompt}` : `User: ${cleanPrompt}`;
 
-  const result = await model.generateContent(`${instruction}\n\nUser prompt: ${prompt}`);
-  return result.response.text();
+  const result = await client.models.generateContent({
+    model: modelName,
+    contents: content,
+    config: {
+      systemInstruction: instruction,
+      temperature: 0.4,
+    },
+  });
+
+  return result.text?.trim() || 'मुझे अभी उत्तर बनाने में समस्या हुई। कृपया फिर से पूछें।';
 }
 
 export async function generateStructuredSupport(prompt: string) {
-  const text = await generateGeminiText({ prompt });
+  const text = await generateGeminiText({ prompt, language: 'hi' });
+
   return {
     summary: text,
-    items: text.split(/[•\n\r]+/).map((item) => item.trim()).filter(Boolean).slice(0, 5)
+    items: text.split(/[•\n\r]+/).map((item) => item.trim()).filter(Boolean).slice(0, 5),
   };
 }

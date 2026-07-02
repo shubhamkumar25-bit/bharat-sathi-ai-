@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import { observeAuthState, loginWithEmail, logout, registerWithEmail } from '@/services/auth';
+import { syncProfile } from '@/services/backend';
 
 type AuthContextValue = {
   user: User | null;
@@ -20,6 +21,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(currentUser);
     setInitializing(false);
   }), []);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    void syncProfile({
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      phoneNumber: user.phoneNumber,
+    }).catch(() => undefined);
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
