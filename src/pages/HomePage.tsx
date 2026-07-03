@@ -6,7 +6,7 @@ const highlights = [
   {
     icon: Bot,
     title: 'AI Chatbot',
-    description: 'Simple Hindi answers for students, job seekers, farmers, and workers.'
+    description: 'Simple Hindi and English answers for students, job seekers, farmers, and workers.'
   },
   {
     icon: Mic,
@@ -48,7 +48,7 @@ export function HomePage() {
               BharatSaathi AI helps people find guidance, jobs, schemes, and next steps in one place.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg dark:text-slate-300">
-              A hackathon-ready foundation for AI chat, voice support, career guidance, resume building, and government scheme discovery.
+              A ready foundation for AI chat, voice support, career guidance, resume building, and government scheme discovery.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
@@ -79,7 +79,7 @@ export function HomePage() {
               {[
                 ['6+', 'Ready screens'],
                 ['1', 'Responsive shell'],
-                ['5', 'Hackathon days']
+                ['5', ' days']
               ].map(([value, label]) => (
                 <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center dark:border-slate-800 dark:bg-slate-950">
                   <div className="text-2xl font-semibold text-slate-950 dark:text-white">{value}</div>

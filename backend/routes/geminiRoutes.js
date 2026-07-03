@@ -7,3 +7,4 @@ export const geminiRoutes = Router();
 geminiRoutes.post('/chat', requireAuth, generateChatReply);
 geminiRoutes.post('/task', requireAuth, generateTaskOutput);                                                                                                                                                                                                                                                                  
 
+1

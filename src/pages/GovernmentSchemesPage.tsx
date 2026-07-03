@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
+import { generateTaskOutput } from "@/services/backend";
 import { ShieldCheck, FileSearch, MapPin, Users, Search, Bookmark, BookmarkCheck, Filter } from 'lucide-react';
 import { deleteSchemeBookmark, loadBookmarks, loadSchemes, saveSchemeBookmark } from '@/services/backend';
 
@@ -25,15 +26,65 @@ type Bookmark = {
 export function GovernmentSchemesPage() {
   const [schemes, setSchemes] = useState<Scheme[]>([]);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('all');
-  const [occupation, setOccupation] = useState('all');
-  const [loading, setLoading] = useState(true);
+const [query, setQuery] = useState("");
+const [category, setCategory] = useState("all");
+const [occupation, setOccupation] = useState("all");
+
+const [loading, setLoading] = useState(true);
+
+const [stateName, setStateName] = useState("Uttar Pradesh");
+const states = [
+  "All India",
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Andaman and Nicobar Islands",
+  "Chandigarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Jammu and Kashmir",
+  "Ladakh",
+  "Lakshadweep",
+  "Puducherry"
+];
+const [age, setAge] = useState("");
+const [aiResult, setAiResult] = useState("");
+const [aiLoading, setAiLoading] = useState(false);
 
   const bookmarkedIds = useMemo(() => new Set(bookmarks.map((item) => item.schemeId)), [bookmarks]);
 
   async function refreshSchemes() {
-    const response = await loadSchemes({ query, category, occupation, state: 'all' });
+    const response = await loadSchemes({
+  query,
+  category,
+  occupation,
+  state: stateName,
+});
     setSchemes((response as { schemes: Scheme[] }).schemes || []);
   }
 
@@ -52,8 +103,53 @@ export function GovernmentSchemesPage() {
     }, 250);
 
     return () => window.clearTimeout(handle);
-  }, [query, category, occupation]);
+  }, [query, category, occupation, stateName]);
+async function getAISchemes() {
+  try {
+    setAiLoading(true);
 
+    const result = await generateTaskOutput({
+      task: "Government Schemes",
+      prompt: `
+You are BharatSaathi AI.
+
+Suggest Indian Government Schemes.
+
+State: ${stateName}
+
+Age: ${age}
+
+Occupation: ${occupation}
+
+Search: ${query}
+
+Return:
+
+1. Scheme Name
+
+2. Benefits
+
+3. Eligibility
+
+4. Documents Required
+
+5. Official Website
+
+6. How to Apply
+
+7. Last Date
+
+Give answer in simple Hindi.
+`,
+    });
+
+    setAiResult(result.answer);
+  } catch (error) {
+    alert("AI recommendation failed.");
+  } finally {
+    setAiLoading(false);
+  }
+}
   async function toggleBookmark(scheme: Scheme) {
     if (bookmarkedIds.has(scheme.id)) {
       const existing = bookmarks.find((item) => item.schemeId === scheme.id);
@@ -86,7 +182,76 @@ export function GovernmentSchemesPage() {
           Search, filter, and bookmark the schemes that match the user profile. Saved items are synced to Firestore.
         </p>
       </section>
+<section className="hero-frame p-6">
 
+<h2 className="mb-6 text-2xl font-bold">
+
+🤖 AI Government Scheme Finder
+
+</h2>
+
+<div className="grid gap-4 md:grid-cols-4">
+
+
+
+<input
+className="rounded-xl border p-3"
+placeholder="Age"
+value={age}
+onChange={(e)=>setAge(e.target.value)}
+/>
+<select
+  className="rounded-xl border p-3"
+  value={stateName}
+  onChange={(e) => setStateName(e.target.value)}
+>
+  {states.map((item) => (
+    <option key={item} value={item}>
+      {item}
+    </option>
+  ))}
+</select>
+<select
+className="rounded-xl border p-3"
+value={occupation}
+onChange={(e)=>setOccupation(e.target.value)}
+>
+
+<option value="student">Student</option>
+
+<option value="farmer">Farmer</option>
+
+<option value="worker">Worker</option>
+
+<option value="entrepreneur">Entrepreneur</option>
+
+</select>
+
+<button
+className="rounded-xl bg-blue-600 p-3 text-white"
+onClick={getAISchemes}
+>
+
+{aiLoading ? "Searching..." : "Find Schemes"}
+
+</button>
+
+</div>
+
+{
+aiResult && (
+
+<div className="mt-6 rounded-xl border p-5 whitespace-pre-wrap">
+
+{aiResult}
+
+</div>
+
+)
+
+}
+
+</section>
       <section className="hero-frame p-6">
         <div className="grid gap-3 lg:grid-cols-[1.3fr_0.7fr_0.7fr]">
           <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">

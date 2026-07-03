@@ -9,6 +9,7 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { ResumeBuilderPage } from './pages/ResumeBuilderPage';
+import { JobSearchPage } from './pages/JobSearchPage';
 
 export default function App() {
   return (
@@ -21,6 +22,14 @@ export default function App() {
         <Route path={appPaths.chat} element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
         <Route path={appPaths.resumeBuilder} element={<ProtectedRoute><ResumeBuilderPage /></ProtectedRoute>} />
         <Route path={appPaths.governmentSchemes} element={<ProtectedRoute><GovernmentSchemesPage /></ProtectedRoute>} />
+        <Route
+  path="/jobs"
+  element={
+    <ProtectedRoute>
+      <JobSearchPage />
+    </ProtectedRoute>
+  }
+/>
         <Route path="*" element={<NotFoundPage />} />
       </Route>
       <Route path="/app" element={<Navigate to={appPaths.dashboard} replace />} />

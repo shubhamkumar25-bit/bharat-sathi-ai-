@@ -13,6 +13,7 @@ const navItems = [
   { label: 'AI Chat', to: appPaths.chat },
   { label: 'Resume Builder', to: appPaths.resumeBuilder },
   { label: 'Schemes', to: appPaths.governmentSchemes },
+  { label: 'Jobs', to: '/jobs' },
   { label: 'Login', to: appPaths.login }
 ];
 
