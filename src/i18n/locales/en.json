@@ -1,0 +1,19 @@
+{
+  "home": "Home",
+  "dashboard": "Dashboard",
+  "chat": "AI Chat",
+  "resume": "Resume Builder",
+  "jobs": "Jobs",
+  "profile": "Profile",
+  "schemes": "Government Schemes",
+  "career": "Career Guidance",
+  "login": "Login",
+  "logout": "Logout",
+  "language": "Language",
+  "welcome": "Welcome",
+  "student": "Student",
+  "farmer": "Farmer",
+  "submit": "Submit",
+  "cancel": "Cancel",
+  "search": "Search"
+}

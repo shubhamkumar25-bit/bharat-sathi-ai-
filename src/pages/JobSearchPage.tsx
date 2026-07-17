@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Search, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { useMemo, useState } from 'react';
+import { Search, Copy, ExternalLink, Loader2 } from 'lucide-react';
+import { generateTaskOutput } from '@/services/backend';
 
 const countries = [
   "India",
@@ -13,131 +14,110 @@ const countries = [
 ];
 
 export function JobSearchPage() {
-  // Country & Location States
-  const [country, setCountry] = useState("India");
-  const [stateName, setStateName] = useState("");
-  const [city, setCity] = useState("");
-  
-  // Job Preference States
-  const [qualification, setQualification] = useState("");
-  const [skills, setSkills] = useState("");
-  const [experience, setExperience] = useState("");
-  const [jobType, setJobType] = useState("Full Time");
-  const [language, setLanguage] = useState("English");
-  
-  // UI & Response States
+  const [country, setCountry] = useState('India');
+  const [stateName, setStateName] = useState('');
+  const [city, setCity] = useState('');
+  const [qualification, setQualification] = useState('');
+  const [skills, setSkills] = useState('');
+  const [experience, setExperience] = useState('');
+  const [jobType, setJobType] = useState('Full Time');
+  const [language, setLanguage] = useState('English');
   const [loading, setLoading] = useState(false);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [rawJsonResult, setRawJsonResult] = useState("");
-  const [jobSearchUrl, setJobSearchUrl] = useState("");
+  const [jobs, setJobs] = useState<Array<{ title?: string; company?: string; location?: string; salary?: string; type?: string; description?: string; linkedin?: string; naukri?: string; indeed?: string }>>([]);
+  const [rawJsonResult, setRawJsonResult] = useState('');
+  const [error, setError] = useState('');
 
-  // Simulated RAG Document Retrieval Mock
-  async function fetchRAGContext(query: string) {
-    // Replace this string with an actual fetch request to your vector database if needed
-    return `[Context: Live vector database match embeddings for query metadata: ${query}]`;
+  const searchContext = useMemo(() => {
+    return {
+      country,
+      stateName,
+      city,
+      qualification,
+      skills,
+      experience,
+      jobType,
+      language,
+    };
+  }, [country, city, experience, jobType, language, qualification, skills, stateName]);
+
+  function parseJobResponse(answer: string) {
+    const trimmed = answer.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+
+    try {
+      return JSON.parse(trimmed) as { jobs?: Array<Record<string, unknown>> };
+    } catch {
+      return { jobs: [] };
+    }
   }
 
   async function searchJobs() {
     try {
       setLoading(true);
+      setError('');
       setJobs([]);
-      setRawJsonResult("");
+      setRawJsonResult('');
 
-      const queryPayload = `${skills} ${city} ${stateName} ${country} ${jobType}`;
-      const encodedKeyword = encodeURIComponent(queryPayload);
-      setJobSearchUrl(encodedKeyword);
+      const result = await generateTaskOutput({
+        task: 'Job Search',
+        prompt: `
+Return a strict JSON object with a jobs array. No markdown, no commentary.
 
-      // 1. RAG Context Stage
-      const ragContextDocs = await fetchRAGContext(queryPayload);
+Criteria:
+- Country: ${searchContext.country}
+- State: ${searchContext.stateName || 'Any'}
+- City: ${searchContext.city || 'Any'}
+- Qualification: ${searchContext.qualification || 'Any'}
+- Skills: ${searchContext.skills || 'Any'}
+- Experience: ${searchContext.experience || 'Any'}
+- Job Type: ${searchContext.jobType}
+- Output Language: ${searchContext.language}
 
-      // 2. Direct HTTP Fetch to Groq API (No SDK required)
-      const apiKey = import.meta.env.VITE_GROQ_API_KEY || ""; 
-      
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile", // Fast, accurate model supporting JSON Mode
-          response_format: { type: "json_object" }, // Forces valid programmatic JSON output
-          temperature: 0.3,
-          messages: [
-            {
-              role: "system",
-              content: `You are BharatSaathi AI. Find 10 real job opportunities based on the RAG context provided. 
-              You must return ONLY a valid JSON object matching the requested schema. No markdown wrapping blocks.`
-            },
-            {
-              role: "user",
-              content: `
-              Criteria:
-              - Country: ${country}
-              - State: ${stateName || "Any"}
-              - City: ${city || "Any"}
-              - Qualification: ${qualification}
-              - Skills: ${skills}
-              - Experience: ${experience}
-              - Job Type: ${jobType}
-              - Language Output: ${language}
-
-              RAG Vector Matches:
-              ${ragContextDocs}
-
-              Return JSON object format:
-              {
-                "jobs": [
-                  {
-                    "title": "",
-                    "company": "",
-                    "location": "",
-                    "salary": "",
-                    "type": "",
-                    "description": "",
-                    "linkedin": "",
-                    "naukri": "",
-                    "indeed": ""
-                  }
-                ]
-              }
-              `
-            }
-          ]
-        })
+Schema:
+{
+  "jobs": [
+    {
+      "title": "",
+      "company": "",
+      "location": "",
+      "salary": "",
+      "type": "",
+      "description": "",
+      "linkedin": "",
+      "naukri": "",
+      "indeed": ""
+    }
+  ]
+}
+        `,
       });
 
-      if (!response.ok) {
-        throw new Error(`Groq API Error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const responseText = data.choices[0]?.message?.content || "{}";
-      
-      setRawJsonResult(responseText);
-      const parsedData = JSON.parse(responseText);
-      setJobs(parsedData.jobs || []);
+      setRawJsonResult(result.answer);
+      const parsedData = parseJobResponse(result.answer);
+      setJobs((parsedData.jobs || []) as typeof jobs);
 
     } catch (error) {
-      console.error("Processing Failed:", error);
-      alert(error instanceof Error ? error.message : "Job Fetch Failed");
+      setError(error instanceof Error ? error.message : 'Job Fetch Failed');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-10 px-4">
-      <h1 className="text-4xl font-bold mb-8 flex items-center gap-3">
-        🤖 AI Job Search <span className="text-sm font-normal bg-gray-100 text-gray-700 px-3 py-1 rounded-full border">Groq REST RAG Pipeline</span>
-      </h1>
+    <div className="mx-auto max-w-6xl space-y-8 py-10 px-4">
+      <section className="hero-frame p-6 sm:p-8">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-4xl">
+          AI Job Search
+        </h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+          Search opportunities through the backend Gemini pipeline, keep the response structured, and preserve the fallback links for manual browsing.
+        </p>
+      </section>
 
-      {/* Input panel */}
-      <div className="grid md:grid-cols-2 gap-5 bg-gray-50 p-6 rounded-2xl border">
+      <div className="grid gap-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-2">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">Country</label>
           <select
-            className="w-full border bg-white rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className="focus-ring w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white"
             value={country}
             onChange={(e) => setCountry(e.target.value)}
           >
@@ -148,9 +128,9 @@ export function JobSearchPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">State / Region</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">State / Region</label>
           <input
-            className="w-full border bg-white rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className="focus-ring w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white"
             placeholder="e.g. Maharashtra, California"
             value={stateName}
             onChange={(e) => setStateName(e.target.value)}
@@ -158,9 +138,9 @@ export function JobSearchPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">City</label>
           <input
-            className="w-full border bg-white rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className="focus-ring w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white"
             placeholder="e.g. Mumbai, London"
             value={city}
             onChange={(e) => setCity(e.target.value)}
@@ -168,9 +148,9 @@ export function JobSearchPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">Skills</label>
           <input
-            className="w-full border bg-white rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className="focus-ring w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white"
             placeholder="e.g. React, Node.js, Python"
             value={skills}
             onChange={(e) => setSkills(e.target.value)}
@@ -178,9 +158,9 @@ export function JobSearchPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Qualification</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">Qualification</label>
           <input
-            className="w-full border bg-white rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className="focus-ring w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white"
             placeholder="e.g. B.Tech Computer Science"
             value={qualification}
             onChange={(e) => setQualification(e.target.value)}
@@ -188,9 +168,9 @@ export function JobSearchPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Experience Required</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">Experience Required</label>
           <input
-            className="w-full border bg-white rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className="focus-ring w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white"
             placeholder="e.g. Freshers, 3 Years"
             value={experience}
             onChange={(e) => setExperience(e.target.value)}
@@ -198,9 +178,9 @@ export function JobSearchPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Job Commitment</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">Job Commitment</label>
           <select
-            className="w-full border bg-white rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className="focus-ring w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white"
             value={jobType}
             onChange={(e) => setJobType(e.target.value)}
           >
@@ -212,9 +192,9 @@ export function JobSearchPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">AI Preferred Language</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">AI Preferred Language</label>
           <select
-            className="w-full border bg-white rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-blue-500"
+            className="focus-ring w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white"
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
           >
@@ -225,23 +205,24 @@ export function JobSearchPage() {
       </div>
 
       <button
-        onClick={searchJobs}
+        onClick={() => void searchJobs()}
         disabled={loading}
-        className="mt-6 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-xl px-6 py-3.5 flex items-center gap-2 shadow-lg transition"
+        className="focus-ring mt-6 inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3.5 font-semibold text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
       >
         {loading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />}
-        {loading ? "Parsing Documents via Groq..." : "Perform Intelligent Search"}
+        {loading ? 'Generating job matches...' : 'Perform Intelligent Search'}
       </button>
 
-      {/* Results View Container */}
+      {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">{error}</div> : null}
+
       {(rawJsonResult || loading) && (
-        <div className="mt-10 rounded-2xl border bg-white p-6 shadow-xl">
-          <div className="flex items-center justify-between mb-6 border-b pb-4">
-            <h2 className="text-2xl font-bold text-gray-800">🎯 AI Matches</h2>
+        <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+          <div className="mb-6 flex items-center justify-between border-b border-slate-200 pb-4 dark:border-slate-800">
+            <h2 className="text-2xl font-semibold text-slate-950 dark:text-white">AI Matches</h2>
             {rawJsonResult && (
               <button
-                onClick={() => navigator.clipboard.writeText(rawJsonResult)}
-                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium px-4 py-2 rounded-xl flex items-center gap-2 text-sm"
+                onClick={() => void navigator.clipboard.writeText(rawJsonResult)}
+                className="focus-ring inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
               >
                 <Copy size={16} /> Copy Raw Data
               </button>
@@ -249,40 +230,40 @@ export function JobSearchPage() {
           </div>
 
           {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center text-gray-500 gap-3">
-              <Loader2 className="animate-spin text-blue-600" size={40} />
-              <p className="font-medium animate-pulse">Running semantic contextual generation framework...</p>
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-500 dark:text-slate-300">
+              <Loader2 className="animate-spin text-saffron-500" size={40} />
+              <p className="font-medium animate-pulse">Running structured job generation...</p>
             </div>
           ) : jobs.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2">
               {jobs.map((job: any, index: number) => (
-                <div key={index} className="rounded-2xl border p-5 shadow-sm bg-white flex flex-col justify-between">
+                <div key={index} className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">💼 {job.title}</h3>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p>🏢 <strong>Company:</strong> {job.company}</p>
-                      <p>📍 <strong>Location:</strong> {job.location}</p>
-                      <p>💰 <strong>Salary:</strong> {job.salary || "Not Disclosed"}</p>
-                      <p>🕒 <strong>Type:</strong> {job.type}</p>
+                    <h3 className="mb-2 text-xl font-semibold text-slate-950 dark:text-white">{job.title}</h3>
+                    <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
+                      <p><strong>Company:</strong> {job.company}</p>
+                      <p><strong>Location:</strong> {job.location}</p>
+                      <p><strong>Salary:</strong> {job.salary || 'Not Disclosed'}</p>
+                      <p><strong>Type:</strong> {job.type}</p>
                     </div>
-                    <p className="mt-4 text-sm text-gray-700 bg-gray-50 p-3 rounded-xl border border-dashed">
+                    <p className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-3 text-sm leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                       {job.description}
                     </p>
                   </div>
 
-                  <div className="mt-6 pt-4 border-t flex gap-2 flex-wrap text-xs font-semibold">
+                  <div className="mt-6 flex flex-wrap gap-2 border-t border-slate-200 pt-4 text-xs font-semibold dark:border-slate-800">
                     {job.linkedin && (
-                      <a href={job.linkedin} target="_blank" rel="noreferrer" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-1">
+                      <a href={job.linkedin} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-3 py-2 text-white transition hover:bg-blue-700">
                         LinkedIn <ExternalLink size={12} />
                       </a>
                     )}
                     {job.naukri && (
-                      <a href={job.naukri} target="_blank" rel="noreferrer" className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg flex items-center gap-1">
+                      <a href={job.naukri} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-orange-600 px-3 py-2 text-white transition hover:bg-orange-700">
                         Naukri <ExternalLink size={12} />
                       </a>
                     )}
                     {job.indeed && (
-                      <a href={job.indeed} target="_blank" rel="noreferrer" className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg flex items-center gap-1">
+                      <a href={job.indeed} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full bg-slate-700 px-3 py-2 text-white transition hover:bg-slate-900 dark:bg-slate-800 dark:hover:bg-slate-700">
                         Indeed <ExternalLink size={12} />
                       </a>
                     )}
@@ -291,28 +272,25 @@ export function JobSearchPage() {
               ))}
             </div>
           ) : (
-            <div className="rounded-xl bg-amber-50 text-amber-800 p-5 font-medium">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
               No matching data objects could be verified. Modify inputs and try again.
             </div>
           )}
 
-          {/* Backup External Engine Searches */}
-          {jobSearchUrl && (
-            <div className="mt-10 pt-6 border-t">
-              <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Fallback Global Directories</h4>
-              <div className="flex gap-3 flex-wrap">
-                <a href={`https://www.linkedin.com/jobs/search/?keywords=${jobSearchUrl}`} target="_blank" rel="noopener noreferrer" className="bg-slate-800 hover:bg-slate-900 text-white text-sm px-4 py-2.5 rounded-xl">
+          <div className="mt-10 border-t border-slate-200 pt-6 dark:border-slate-800">
+            <h4 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Fallback Global Directories</h4>
+            <div className="flex flex-wrap gap-3">
+              <a href={`https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent([country, stateName, city, skills, experience, jobType].filter(Boolean).join(' '))}`} target="_blank" rel="noopener noreferrer" className="rounded-full bg-slate-800 px-4 py-2.5 text-sm text-white transition hover:bg-slate-900">
                   Search LinkedIn
                 </a>
-                <a href={`https://www.naukri.com/${jobSearchUrl}-jobs`} target="_blank" rel="noopener noreferrer" className="bg-slate-800 hover:bg-slate-900 text-white text-sm px-4 py-2.5 rounded-xl">
+              <a href={`https://www.naukri.com/${encodeURIComponent([country, stateName, city, skills, experience, jobType].filter(Boolean).join(' '))}-jobs`} target="_blank" rel="noopener noreferrer" className="rounded-full bg-slate-800 px-4 py-2.5 text-sm text-white transition hover:bg-slate-900">
                   Search Naukri
                 </a>
-                <a href={`https://in.indeed.com/jobs?q=${jobSearchUrl}`} target="_blank" rel="noopener noreferrer" className="bg-slate-800 hover:bg-slate-900 text-white text-sm px-4 py-2.5 rounded-xl">
+              <a href={`https://in.indeed.com/jobs?q=${encodeURIComponent([country, stateName, city, skills, experience, jobType].filter(Boolean).join(' '))}`} target="_blank" rel="noopener noreferrer" className="rounded-full bg-slate-800 px-4 py-2.5 text-sm text-white transition hover:bg-slate-900">
                   Search Indeed
                 </a>
-              </div>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

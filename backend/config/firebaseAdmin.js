@@ -40,6 +40,7 @@ function getFirebaseApp() {
 }
 
 export function getFirebaseAdminApp() {
+
   return getFirebaseApp();
 }
 

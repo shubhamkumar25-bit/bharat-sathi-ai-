@@ -25,6 +25,10 @@ const highlights = [
   }
 ];
 
+
+
+
+
 const roadmap = [
   'Day 1: Core website structure',
   'Day 2: Gemini AI chat',
