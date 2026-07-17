@@ -69,7 +69,7 @@ const navItems = [
         <div className="section-shell flex items-center justify-between gap-4 py-4">
           <NavLink
   to={appPaths.home}
-  className="flex items-center gap-3"
+  className="flex min-w-[220px] items-center gap-3"
 >
   <img
   src={logo}
@@ -88,22 +88,22 @@ const navItems = [
   </div>
 </NavLink>
 
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden flex-1 items-center justify-center gap-8 lg:flex">
             {navItems.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    'focus-ring rounded-full px-4 py-2 text-sm font-medium transition',
-                    isActive
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'
-                  )
-                }
-              >
-                {item.label}
-              </NavLink>
+             <NavLink
+  key={item.to}
+  to={item.to}
+  className={({ isActive }) =>
+    cn(
+      "focus-ring whitespace-nowrap rounded-full px-3 py-2 text-base font-semibold transition",
+      isActive
+        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
+        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+    )
+  }
+>
+  {item.label}
+</NavLink>
             ))}
           </nav>
 
