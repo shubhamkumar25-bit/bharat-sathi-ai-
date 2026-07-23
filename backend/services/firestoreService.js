@@ -28,9 +28,16 @@ function safeDate(value) {
   return value;
 }
 
-export async function upsertProfile(userId, profile) {
-  await userDoc(userId).set({ profile, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-  return profile;
+export async function upsertProfile(userId, profileData) {
+  // Remove role from incoming data to prevent security bypass from the client
+  const { role, ...safeData } = profileData;
+
+  await userDoc(userId).set({ 
+    ...safeData, 
+    updatedAt: FieldValue.serverTimestamp() 
+  }, { merge: true });
+  
+  return safeData;
 }
 
 export async function readProfile(userId) {

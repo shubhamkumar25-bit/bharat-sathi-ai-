@@ -11,7 +11,7 @@ export async function getDashboardSummary(req, res, next) {
     ]);
 
     res.json({
-      profile: profile?.profile || null,
+      profile: profile || null,
       conversations,
       resumes,
       bookmarks,

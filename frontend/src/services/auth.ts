@@ -5,6 +5,8 @@ import {
   signInWithEmailAndPassword,
   setPersistence,
   signOut,
+  GoogleAuthProvider,
+  signInWithPopup,
   type User
 } from 'firebase/auth';
 import { assertFirebaseAuthReady, firebaseAuth } from '@/lib/firebase';
@@ -70,6 +72,24 @@ export async function registerWithEmail(email: string, password: string) {
 
   try {
     return await createUserWithEmailAndPassword(auth, email, password);
+  } catch (error) {
+    throw new Error(mapFirebaseAuthError(error));
+  }
+}
+
+export async function loginWithGoogle() {
+  assertFirebaseAuthReady();
+  const auth = firebaseAuth;
+
+  if (!auth) {
+    throw new Error('Firebase Authentication is not configured. Please provide valid VITE_FIREBASE_* values in your .env file.');
+  }
+
+  await setPersistence(auth, browserLocalPersistence);
+  const provider = new GoogleAuthProvider();
+
+  try {
+    return await signInWithPopup(auth, provider);
   } catch (error) {
     throw new Error(mapFirebaseAuthError(error));
   }

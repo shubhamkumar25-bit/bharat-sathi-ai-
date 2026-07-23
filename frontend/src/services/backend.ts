@@ -189,3 +189,21 @@ export async function deleteSchemeBookmark(bookmarkId: string) {
     method: 'DELETE',
   });
 }
+
+// Admin API
+export async function loadAllUsers() {
+  return request<{ users: any[] }>('/api/auth/users');
+}
+
+export async function updateUserRoleApi(uid: string, role: 'admin' | 'user') {
+  return request(`/api/auth/users/${uid}/role`, {
+    method: 'PUT',
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function deleteUserApi(uid: string) {
+  return request(`/api/auth/users/${uid}`, {
+    method: 'DELETE',
+  });
+}

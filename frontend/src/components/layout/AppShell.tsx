@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 
+import { AuthModal } from "./AuthModal";
 import logo from "../../assets/logo.png.png";
 import { appPaths } from "@/constants/paths";
 import { useTheme } from "@/context/ThemeContext";
@@ -35,7 +36,7 @@ export default function AppShell() {
 
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useTheme();
-  const { user, role, signOut } = useAuth();
+  const { user, role, signOut, setAuthModalOpen, setAuthMode } = useAuth();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,6 +64,10 @@ export default function AppShell() {
     { label: t("jobs"), to: "/jobs" },
     { label: t("profile"), to: appPaths.profile },
   ];
+
+  if (role === 'admin') {
+    moreNavItems.push({ label: 'Admin', to: '/admin' });
+  }
 
   const allNavItems = [...primaryNavItems, ...moreNavItems];
 
@@ -245,13 +250,17 @@ export default function AppShell() {
                 <span className="hidden 2xl:inline">{t("logout")}</span>
               </button>
             ) : (
-              <Link
-                to={appPaths.login}
-                className="hidden items-center gap-2 rounded-full bg-slate-950 px-3 py-2 text-sm font-semibold text-white dark:bg-white dark:text-slate-950 xl:inline-flex"
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('login');
+                  setAuthModalOpen(true);
+                }}
+                className="focus-ring hidden items-center gap-2 rounded-full bg-slate-950 px-3 py-2 text-sm font-semibold text-white dark:bg-white dark:text-slate-950 xl:inline-flex"
               >
                 <UserRound className="h-4 w-4" />
                 <span className="hidden 2xl:inline">{t("login")}</span>
-              </Link>
+              </button>
             )}
 
             {/* Mobile / Tablet Menu */}
@@ -325,20 +334,18 @@ export default function AppShell() {
                   {t("logout")}
                 </button>
               ) : (
-                <NavLink
-                  to={appPaths.login}
-                  className={({ isActive }) =>
-                    cn(
-                      "focus-ring flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-medium transition",
-                      isActive
-                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                        : "bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                    )
-                  }
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('login');
+                    setAuthModalOpen(true);
+                    setMenuOpen(false);
+                  }}
+                  className="focus-ring flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-left text-sm font-medium text-slate-700 transition dark:bg-slate-900 dark:text-slate-200"
                 >
                   <UserRound className="h-4 w-4" />
                   {t("login")}
-                </NavLink>
+                </button>
               )}
             </div>
           </div>
@@ -386,6 +393,7 @@ export default function AppShell() {
           </div>
         </div>
       </footer>
+      <AuthModal />
     </div>
   );
 }

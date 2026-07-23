@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to write, but they cannot give themselves the 'admin' role unless they already have it
+      allow write: if request.auth != null && request.auth.uid == userId 
+                   && (request.resource.data.get('role', 'user') != 'admin' || (resource != null && resource.data.get('role', 'user') == 'admin'));
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+  }
+}

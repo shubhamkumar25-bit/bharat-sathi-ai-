@@ -14,23 +14,23 @@ BharatSaathi AI is a multilingual React application for career guidance, governm
 
 ## Setup
 
-1. Install dependencies:
+The project is split into perfectly isolated `frontend` and `backend` modules. 
+
+1. Install dependencies and start the backend:
 
 ```bash
+cd backend
 npm install
+npm run dev
 ```
 
-2. Copy environment variables:
+2. Copy environment variables in the frontend and start the client:
 
 ```bash
+cd frontend
 copy .env.example .env
-```
-
-3. Fill in your Firebase and Gemini keys in `.env`.
-
-4. Start the app:
-
-```bash
+# Fill in your Firebase and Gemini keys in .env
+npm install
 npm run dev
 ```
 
@@ -41,21 +41,22 @@ Create a Firebase project and enable:
 - Authentication with Email/Password and Google if needed
 - Firestore Database
 
-Use the generated config values in `.env`.
+Use the generated config values in `frontend/.env`.
 
 ## Deployment
 
-Build the app with:
+Build the frontend app with:
 
 ```bash
+cd frontend
 npm run build
 ```
 
-Deploy the static output from `dist/` to Netlify, Vercel, Firebase Hosting, or any static host.
+Deploy the static output from `frontend/dist/` to Netlify, Vercel, Firebase Hosting, or any static host.
 
 ## Notes
 
-- Gemini calls are isolated in `src/services/gemini.ts`.
-- Firestore read/write helpers are in `src/services/firestore.ts`.
+- Gemini calls are isolated in `frontend/src/services/gemini.ts` and the backend.
+- Firestore read/write helpers are in `frontend/src/services/firestore.ts`.
 - Protected routes guard the dashboard and user modules.
 - The UI is mobile-first with light/dark support.
