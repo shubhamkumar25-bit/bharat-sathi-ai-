@@ -14,7 +14,7 @@ export function CareerGuidancePage() {
   const [skills, setSkills] = useState('React, TypeScript, UI Design');
   const [experience, setExperience] = useState('1-2 years');
   const [education, setEducation] = useState('B.Tech / BCA / Diploma');
-  const [language, setLanguage] = useState('Hindi');
+  const [language, setLanguage] = useState('Auto Detect');
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
@@ -31,7 +31,7 @@ export function CareerGuidancePage() {
       const result = await generateTaskOutput({
         task: 'Career Guidance',
         prompt: `
-Create a practical career roadmap in simple ${language === 'Hindi' ? 'Hindi' : 'English'} for this user.
+Create a practical career roadmap for this user. ${language !== 'Auto Detect' ? `Respond in ${language}.` : 'Respond in the exact same language used in the input.'}
 
 Target Role: ${targetRole}
 Skills: ${skills}
@@ -55,6 +55,8 @@ Return a concise action plan with:
       setLoading(false);
     }
   }
+
+  const languageOptions = ['Auto Detect', 'Hindi', 'English', 'Hinglish', 'Tamil', 'Telugu', 'Bengali', 'Marathi', 'Gujarati', 'Punjabi', 'Kannada', 'Malayalam', 'Urdu', 'Odia', 'Assamese', 'Nepali'];
 
   return (
     <div className="space-y-8 py-8">
@@ -93,8 +95,9 @@ Return a concise action plan with:
             <label className="space-y-2 text-sm md:col-span-2">
               <span className="font-medium text-slate-700 dark:text-slate-200">Preferred language</span>
               <select value={language} onChange={(event) => setLanguage(event.target.value)} className="focus-ring w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                <option>Hindi</option>
-                <option>English</option>
+                {languageOptions.map((lang) => (
+                  <option key={lang} value={lang}>{lang}</option>
+                ))}
               </select>
             </label>
           </div>

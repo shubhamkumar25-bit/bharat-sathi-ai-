@@ -5,7 +5,7 @@ import { generateGeminiResponse } from "../services/geminiService.js";
 const chatMessageSchema = z.object({
   message: z.string().min(1),
   conversationId: z.string().optional(),
-  language: z.enum(["hi", "en"]).default("hi"),
+  language: z.string().optional(),
   history: z.array(
     z.object({
       role: z.enum(["user", "assistant", "system"]),
@@ -26,32 +26,7 @@ export async function sendChatMessage(req, res, next) {
     const answerText = await generateGeminiResponse({
       prompt: payload.message,
       history: payload.history.slice(-12),
-      systemInstruction: `
-You are BharatSaathi AI.
-
-Help Indian students, job seekers, farmers, workers and citizens.
-
-Always answer in simple Hindi.
-
-If user asks about jobs:
-- suggest career roadmap
-- skills
-- salary
-- interview questions
-- companies
-
-If user asks about resume:
-- improve resume
-- ATS suggestions
-
-If user asks about government schemes:
-- eligibility
-- documents
-- benefits
-- official process
-
-Always give practical answers.
-      `,
+      systemInstruction: `If user asks about jobs: suggest career roadmap, skills, salary, interview questions. If user asks about resume: suggest ATS improvements. If user asks about government schemes: explain eligibility, documents, benefits, official process. Always give practical answers.`,
     });
 
     const userMessage = {

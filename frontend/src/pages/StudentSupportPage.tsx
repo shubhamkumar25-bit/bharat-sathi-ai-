@@ -13,12 +13,14 @@ export function StudentSupportPage() {
   const [stage, setStage] = useState('College');
   const [goal, setGoal] = useState('Get an internship and a strong first job');
   const [skills, setSkills] = useState('English, Communication, React');
-  const [language, setLanguage] = useState('Hindi');
+  const [language, setLanguage] = useState('Auto Detect');
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
 
   const progress = useMemo(() => Math.min(95, 40 + skills.split(',').filter(Boolean).length * 12), [skills]);
+
+  const languageOptions = ['Auto Detect', 'Hindi', 'English', 'Hinglish', 'Tamil', 'Telugu', 'Bengali', 'Marathi', 'Gujarati', 'Punjabi', 'Kannada', 'Malayalam', 'Urdu', 'Odia', 'Assamese', 'Nepali'];
 
   async function generatePlan() {
     setLoading(true);
@@ -27,7 +29,7 @@ export function StudentSupportPage() {
       const result = await generateTaskOutput({
         task: 'Student Support',
         prompt: `
-Create a student success plan in simple ${language === 'Hindi' ? 'Hindi' : 'English'}.
+Create a student success plan. ${language !== 'Auto Detect' ? `Respond in ${language}.` : 'Respond in the exact same language used in the input.'}
 
 Stage: ${stage}
 Goal: ${goal}
@@ -85,8 +87,9 @@ Include:
             <label className="space-y-2 text-sm md:col-span-2">
               <span className="font-medium text-slate-700 dark:text-slate-200">Language</span>
               <select value={language} onChange={(event) => setLanguage(event.target.value)} className="focus-ring w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white">
-                <option>Hindi</option>
-                <option>English</option>
+                {languageOptions.map((lang) => (
+                  <option key={lang} value={lang}>{lang}</option>
+                ))}
               </select>
             </label>
           </div>

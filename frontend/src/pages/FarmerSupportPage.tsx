@@ -14,12 +14,14 @@ export function FarmerSupportPage() {
   const [stateName, setStateName] = useState('Maharashtra');
   const [season, setSeason] = useState('Kharif');
   const [issue, setIssue] = useState('Need fertilizer and disease guidance');
-  const [language, setLanguage] = useState('Hindi');
+  const [language, setLanguage] = useState('Auto Detect');
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
 
   const supportScore = useMemo(() => Math.min(96, 50 + [crop, stateName, season, issue].filter(Boolean).length * 9), [crop, issue, season, stateName]);
+
+  const languageOptions = ['Auto Detect', 'Hindi', 'English', 'Hinglish', 'Tamil', 'Telugu', 'Bengali', 'Marathi', 'Gujarati', 'Punjabi', 'Kannada', 'Malayalam', 'Urdu', 'Odia', 'Assamese', 'Nepali'];
 
   async function generateAdvice() {
     setLoading(true);
@@ -28,7 +30,7 @@ export function FarmerSupportPage() {
       const result = await generateTaskOutput({
         task: 'Farmer Support',
         prompt: `
-Create practical farming guidance in simple ${language === 'Hindi' ? 'Hindi' : 'English'}.
+Create practical farming guidance. ${language !== 'Auto Detect' ? `Respond in ${language}.` : 'Respond in the exact same language used in the input.'}
 
 Crop: ${crop}
 State: ${stateName}

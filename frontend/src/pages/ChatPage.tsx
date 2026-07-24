@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Mic, MessagesSquare, Send, Volume2, RotateCcw } from 'lucide-react';
 import { clearChatConversation, loadChatHistory, sendChatMessage, type ChatApiMessage } from '@/services/backend';
+import { speak } from '@/services/speechService';
 
 const welcomeMessage: ChatApiMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: 'Namaste! Main BharatSaathi AI hoon. Aap job, resume, schemes, ya career guidance ke baare mein pooch sakte hain.',
+  content: 'Namaste! Main BharatSaathi AI hoon. Ask me in Hindi, English, Hinglish, Tamil, Telugu, Bengali, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Urdu, Odia, Assamese, or Nepali!',
   createdAt: new Date().toISOString(),
 };
 
@@ -87,19 +88,6 @@ export function ChatPage() {
     };
   }, []);
 
-  function speak(text: string) {
-    if (!window.speechSynthesis) {
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'hi-IN';
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    window.speechSynthesis.speak(utterance);
-  }
-
   function startListening() {
     const recognition = recognitionRef.current || createSpeechRecognition();
 
@@ -156,7 +144,6 @@ export function ChatPage() {
       const result = await sendChatMessage({
         message,
         conversationId: conversationId || undefined,
-        language: 'hi',
         history: optimisticMessages,
       });
 
@@ -195,11 +182,11 @@ export function ChatPage() {
       <section className="space-y-4">
         <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-saffron-600 dark:text-saffron-400">
           <MessagesSquare className="h-4 w-4" />
-          AI Chat
+          Multilingual AI Chat
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Simple Hindi chat interface for Gemini integration.</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Automatic Multilingual Conversations</h1>
         <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-          BharatSaathi AI keeps the conversation history, auto scrolls to the latest response, and supports voice input/output.
+          BharatSaathi AI automatically detects your language (Hindi, Hinglish, English, Tamil, Telugu, Bengali, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Urdu, Odia, etc.) and replies in the exact same language.
         </p>
 
         <div className="hero-frame space-y-4 p-5 sm:p-6">
@@ -221,7 +208,7 @@ export function ChatPage() {
           <div className="max-h-[30rem] space-y-3 overflow-y-auto pr-1">
             {loadingHistory ? (
               <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-                Conversation history load ho rahi hai...
+                Conversation history loading...
               </div>
             ) : null}
 
@@ -266,7 +253,7 @@ export function ChatPage() {
                 }
               }}
               className="focus-ring flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-              placeholder="Type your question in simple Hindi or English"
+              placeholder="Type in any language (Hindi, Hinglish, Tamil, Telugu, Bengali, English...)"
             />
             <button type="button" onClick={() => void handleSend()} className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white dark:bg-white dark:text-slate-950" disabled={sending}>
               Send
@@ -277,15 +264,12 @@ export function ChatPage() {
       </section>
 
       <aside className="glass rounded-3xl p-6">
-        <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Gemini Prompt</h2>
-        <pre className="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">
-{`You are BharatSaathi AI.
-Help Indian students, job seekers, farmers and workers.
-Always answer in simple Hindi.
-Provide practical solutions.`}
+        <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Gemini Multilingual Prompt</h2>
+        <pre className="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100 whitespace-pre-wrap">
+{`You are BharatSaathi AI, a multilingual AI assistant for Indian users. Detect the language of the user's latest message and always respond in the same language. If the user writes in Hinglish or another mixed-language style, respond naturally in the same mixed-language style. Never switch to Hindi or English unless the user does so.`}
         </pre>
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-          The latest answer is spoken automatically after each successful reply.
+          The response is automatically spoken in its matching native script locale (Devanagari, Tamil, Telugu, Bengali, Gujarati, etc.).
         </div>
       </aside>
     </div>

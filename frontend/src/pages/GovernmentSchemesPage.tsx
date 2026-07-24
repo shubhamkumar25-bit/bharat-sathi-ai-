@@ -139,7 +139,7 @@ Return:
 
 7. Last Date
 
-Give answer in simple Hindi.
+Detect the language of the search input and respond in the exact same language.
 `,
     });
 

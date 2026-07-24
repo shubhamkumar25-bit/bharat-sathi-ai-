@@ -8,7 +8,7 @@ import {
 
 const geminiSchema = z.object({
   prompt: z.string().min(1),
-  language: z.enum(["hi", "en"]).default("hi"),
+  language: z.string().optional(),
   history: z
     .array(
       z.object({
@@ -28,7 +28,7 @@ export async function generateChatReply(req, res, next) {
       prompt: payload.prompt,
       history: payload.history,
       systemInstruction:
-        "You are BharatSaathi AI. Always answer in simple Hindi. Provide practical solutions for Indian students, job seekers, farmers, and workers.",
+        "Provide practical solutions for Indian students, job seekers, farmers, workers, and citizens.",
     });
 
     res.json({ answer });

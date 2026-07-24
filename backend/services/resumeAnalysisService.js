@@ -18,8 +18,8 @@ export async function buildResumeAnalysis(resume) {
   const formattingScore = Math.min(100, 70 + (resume.profile?.fullName ? 10 : 0) + (resume.profile?.professionalTitle ? 10 : 0));
   const grammarScore = Math.min(100, 68 + Math.min((resume.objective || '').split(' ').length / 5, 20));
 
-  const prompt = `Analyze this resume in simple Hindi. Give a short improvement plan and mention missing keywords. Resume: ${JSON.stringify(resume)}`;
-  const aiSummary = await generateResumeAssist({ prompt, systemInstruction: 'You are BharatSaathi AI. Produce resume improvement advice in simple Hindi.' }).catch(() => '');
+  const prompt = `Analyze this resume. Give a short improvement plan and mention missing keywords. Resume: ${JSON.stringify(resume)}`;
+  const aiSummary = await generateResumeAssist({ prompt, systemInstruction: 'Produce actionable ATS resume improvement advice matching the language of the candidate details.' }).catch(() => '');
 
   return {
     atsScore,

@@ -4,9 +4,12 @@ const modelName = import.meta.env.VITE_GEMINI_MODEL || 'gemini-2.5-flash';
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
 const missingKeyMessage = 'Gemini API key is not configured. Please add VITE_GEMINI_API_KEY to your .env file.';
 
+export const MULTILINGUAL_SYSTEM_INSTRUCTION =
+  "You are BharatSaathi AI, a multilingual AI assistant for Indian users. Detect the language of the user's latest message and always respond in the same language. If the user writes in Hinglish or another mixed-language style, respond naturally in the same mixed-language style. Never switch to Hindi or English unless the user does so.";
+
 export type GeminiPrompt = {
   prompt: string;
-  language?: 'hi' | 'en';
+  language?: string;
   history?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
 };
 
@@ -32,31 +35,28 @@ function validatePrompt(prompt: string) {
   return cleanPrompt;
 }
 
-export async function generateGeminiText({ prompt, language = 'hi', history = [] }: GeminiPrompt) {
+export async function generateGeminiText({ prompt, history = [] }: GeminiPrompt) {
   const cleanPrompt = validatePrompt(prompt);
   const client = getClient();
   const conversationText = history
     .map((item) => `${item.role === 'assistant' ? 'Assistant' : item.role === 'system' ? 'System' : 'User'}: ${item.content}`)
     .join('\n');
-  const instruction = language === 'hi'
-    ? 'उत्तर हिंदी में दें, सरल और सहायक रहें।'
-    : 'Respond in clear, concise English with practical guidance.';
   const content = conversationText ? `${conversationText}\nUser: ${cleanPrompt}` : `User: ${cleanPrompt}`;
 
   const result = await client.models.generateContent({
     model: modelName,
     contents: content,
     config: {
-      systemInstruction: instruction,
+      systemInstruction: MULTILINGUAL_SYSTEM_INSTRUCTION,
       temperature: 0.4,
     },
   });
 
-  return result.text?.trim() || 'मुझे अभी उत्तर बनाने में समस्या हुई। कृपया फिर से पूछें।';
+  return result.text?.trim() || 'Unable to generate response. Please try again.';
 }
 
 export async function generateStructuredSupport(prompt: string) {
-  const text = await generateGeminiText({ prompt, language: 'hi' });
+  const text = await generateGeminiText({ prompt });
 
   return {
     summary: text,

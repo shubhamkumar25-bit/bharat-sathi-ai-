@@ -136,7 +136,7 @@ export async function createResume(req, res, next) {
     const payload = resumeSchema.parse(req.body);
     const objective = payload.objective || await generateResumeAssist({
       prompt: `Create a professional career objective for this candidate: ${JSON.stringify(payload.profile)}`,
-      systemInstruction: 'You are BharatSaathi AI. Generate a professional career objective in simple Hindi or mixed simple Hindi and English, whichever fits best for the user profile.',
+      systemInstruction: 'Generate a professional career objective matching the language of the candidate profile details.',
     });
 
     const resume = await saveResume(req.user.uid, { ...payload, objective });
@@ -241,7 +241,7 @@ export async function generateResumeCopy(req, res, next) {
     const payload = resumeSchema.parse(req.body);
     const answer = await generateResumeAssist({
       prompt: `Rewrite this resume professionally and improve the summary, experience bullets, and skills. Resume data: ${JSON.stringify(payload)}`,
-      systemInstruction: 'You are BharatSaathi AI. Return a professional resume improvement in clear structured text and simple Hindi where useful.',
+      systemInstruction: 'Return a professional resume improvement in clear structured text matching the input language.',
     });
     res.json({ answer });
   } catch (error) {

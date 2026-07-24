@@ -33,6 +33,9 @@ function buildHistory(history = []) {
     .join("\n");
 }
 
+export const MULTILINGUAL_SYSTEM_INSTRUCTION =
+  "You are BharatSaathi AI, a multilingual AI assistant for Indian users. Detect the language of the user's latest message and always respond in the same language. If the user writes in Hinglish or another mixed-language style, respond naturally in the same mixed-language style. Never switch to Hindi or English unless the user does so.";
+
 export async function generateGeminiResponse({
   prompt,
   history = [],
@@ -46,28 +49,15 @@ export async function generateGeminiResponse({
     ? `${conversation}\nUser: ${prompt}`
     : prompt;
 
+  const effectiveInstruction = systemInstruction
+    ? `${MULTILINGUAL_SYSTEM_INSTRUCTION}\n\nAdditional domain guidance:\n${systemInstruction}`
+    : `${MULTILINGUAL_SYSTEM_INSTRUCTION}\n\nHelp Indian students, job seekers, farmers, workers and citizens with practical, actionable guidance.`;
+
   const response = await ai.models.generateContent({
     model: MODEL,
     contents: finalPrompt,
     config: {
-      systemInstruction:
-        systemInstruction ||
-        `You are BharatSaathi AI.
-
-Help Indian students, job seekers, farmers and workers.
-
-Always answer in simple Hindi.
-
-If user asks about jobs:
-Give salary, roadmap, interview questions, skills.
-
-If user asks about government schemes:
-Explain eligibility, documents, benefits and official process.
-
-If user asks about resume:
-Create ATS friendly professional resume.
-
-Always give practical answers.`,
+      systemInstruction: effectiveInstruction,
       temperature: 0.5,
     },
   });
@@ -79,6 +69,6 @@ export async function generateResumeAssist(input) {
   return generateGeminiResponse({
     ...input,
     systemInstruction:
-      "You are an expert ATS Resume Writer. Generate professional resumes in simple language.",
+      "You are an expert ATS Resume Writer. Help create or improve professional ATS-friendly resumes.",
   });
 }

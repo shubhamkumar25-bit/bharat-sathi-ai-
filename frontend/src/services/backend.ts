@@ -89,7 +89,7 @@ export async function loadChatHistory(limit = 20) {
   return request<{ conversations: ChatConversation[] }>(`/api/chat/history?limit=${limit}`);
 }
 
-export async function sendChatMessage(payload: { message: string; conversationId?: string; language?: 'hi' | 'en'; history?: ChatApiMessage[] }) {
+export async function sendChatMessage(payload: { message: string; conversationId?: string; language?: string; history?: ChatApiMessage[] }) {
   return request<{ conversationId: string; answer: string; messages: ChatApiMessage[] }>('/api/chat/message', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -102,14 +102,14 @@ export async function clearChatConversation(conversationId: string) {
   });
 }
 
-export async function askGemini(payload: { prompt: string; language?: 'hi' | 'en'; history?: GeminiHistoryMessage[]; task?: string }) {
+export async function askGemini(payload: { prompt: string; language?: string; history?: GeminiHistoryMessage[]; task?: string }) {
   return request<{ answer: string }>('/api/gemini/chat', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
-export async function generateTaskOutput(payload: { prompt: string; language?: 'hi' | 'en'; history?: GeminiHistoryMessage[]; task?: string }) {
+export async function generateTaskOutput(payload: { prompt: string; language?: string; history?: GeminiHistoryMessage[]; task?: string }) {
   return request<{ answer: string }>('/api/gemini/task', {
     method: 'POST',
     body: JSON.stringify(payload),
