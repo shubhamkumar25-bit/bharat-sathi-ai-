@@ -1,4 +1,4 @@
-export function detectTextLocale(text) {
+export function detectTextLocale(text: string): string {
     if (!text) return "hi-IN";
 
     const devanagari = (text.match(/[\u0900-\u097F]/g) || []).length;
@@ -34,8 +34,8 @@ export function detectTextLocale(text) {
     return "en-IN";
 }
 
-export function speak(text, forceLang) {
-    if (!window.speechSynthesis) return;
+export function speak(text: string, forceLang?: string): void {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
 
     window.speechSynthesis.cancel();
 
@@ -50,8 +50,8 @@ export function speak(text, forceLang) {
     window.speechSynthesis.speak(utterance);
 }
 
-export function stopSpeaking() {
-    if (window.speechSynthesis) {
+export function stopSpeaking(): void {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
     }
 }
