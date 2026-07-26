@@ -27,6 +27,8 @@ function mapFirebaseAuthError(error: unknown) {
       return 'This email is already registered. Please sign in instead.';
     case 'auth/operation-not-allowed':
       return 'Email/Password authentication is disabled in Firebase Console. Go to Firebase Console > Build > Authentication > Sign-in method > Email/Password and turn it on.';
+    case 'auth/unauthorized-domain':
+      return 'This domain is not authorized in Firebase Console. Please add your Vercel domain to Firebase Console > Authentication > Settings > Authorized domains.';
     case 'auth/api-key-not-valid':
       return 'Firebase API key is not valid. Please replace VITE_FIREBASE_API_KEY in your .env file with the Firebase web API key from Firebase Console > Project settings > General > Your apps.';
     default:
