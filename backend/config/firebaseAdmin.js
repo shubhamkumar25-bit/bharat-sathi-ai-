@@ -10,7 +10,7 @@ function buildServiceAccount() {
     return JSON.parse(json);
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
@@ -27,9 +27,13 @@ function getFirebaseApp() {
   }
 
   const serviceAccount = buildServiceAccount();
-  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || process.env.VITE_FIREBASE_STORAGE_BUCKET;
+  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
 
   if (!serviceAccount) {
+    if (projectId) {
+      return initializeApp({ projectId, storageBucket });
+    }
     throw new Error('Firebase Admin credentials are missing. Set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY.');
   }
 
