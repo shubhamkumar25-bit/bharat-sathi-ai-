@@ -29,6 +29,7 @@ const requireAdmin = async (req, res, next) => {
 export const authRoutes = Router();
 
 authRoutes.get('/me', requireAuth, getCurrentUser);
+authRoutes.get('/profile', requireAuth, getCurrentUser);
 authRoutes.post('/profile', requireAuth, saveProfile);
 authRoutes.get('/dashboard', requireAuth, getDashboardSummary);
 

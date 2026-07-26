@@ -68,12 +68,14 @@ export function ChatPage() {
     }
 
     void loadChatHistory().then((result) => {
-      const conversation = result.conversations.find((item) => item.id === conversationId) || result.conversations[0];
+      const conversations = Array.isArray(result?.conversations) ? result.conversations : [];
+      const conversation = conversations.find((item) => item.id === conversationId) || conversations[0];
 
       if (conversation) {
         setConversationId(conversation.id);
         window.localStorage.setItem(conversationKey, conversation.id);
-        setMessages(conversation.messages.length ? conversation.messages : [welcomeMessage]);
+        const msgs = Array.isArray(conversation.messages) ? conversation.messages : [];
+        setMessages(msgs.length ? msgs : [welcomeMessage]);
       }
     }).catch(() => undefined).finally(() => setLoadingHistory(false));
   }, [conversationId]);
@@ -149,7 +151,8 @@ export function ChatPage() {
 
       setConversationId(result.conversationId);
       window.localStorage.setItem(conversationKey, result.conversationId);
-      setMessages(result.messages.length ? result.messages : [...optimisticMessages, { ...welcomeMessage, id: crypto.randomUUID() }]);
+      const serverMsgs = Array.isArray(result?.messages) ? result.messages : [];
+      setMessages(serverMsgs.length ? serverMsgs : [...optimisticMessages, { ...welcomeMessage, id: crypto.randomUUID() }]);
 
       const assistantReply = result.answer?.trim();
       if (assistantReply) {

@@ -22,33 +22,39 @@ export function DashboardPage() {
 
   useEffect(() => {
     void loadDashboard()
-      .then((response) => {
-        setDashboard(response as typeof dashboard);
+      .then((response: any) => {
+        setDashboard({
+          profile: response?.profile || null,
+          conversations: Array.isArray(response?.conversations) ? response.conversations : [],
+          resumes: Array.isArray(response?.resumes) ? response.resumes : [],
+          bookmarks: Array.isArray(response?.bookmarks) ? response.bookmarks : [],
+          activity: Array.isArray(response?.activity) ? response.activity : [],
+        });
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
   }, []);
 
   const summaryCards = useMemo(() => [
-    { label: 'Chats', value: dashboard.conversations.length || 0 },
-    { label: 'Resumes', value: dashboard.resumes.length || 0 },
-    { label: 'Bookmarks', value: dashboard.bookmarks.length || 0 },
-    { label: 'Activity', value: dashboard.activity.length || 0 },
-  ], [dashboard.activity.length, dashboard.bookmarks.length, dashboard.conversations.length, dashboard.resumes.length]);
+    { label: 'Chats', value: (dashboard.conversations || []).length },
+    { label: 'Resumes', value: (dashboard.resumes || []).length },
+    { label: 'Bookmarks', value: (dashboard.bookmarks || []).length },
+    { label: 'Activity', value: (dashboard.activity || []).length },
+  ], [dashboard.activity, dashboard.bookmarks, dashboard.conversations, dashboard.resumes]);
 
-  const recentActivity = dashboard.activity.length
+  const recentActivity = (dashboard.activity || []).length
     ? dashboard.activity
     : [{ id: 'empty-activity', title: 'No recent activity yet.' }];
 
-  const previousChats = dashboard.conversations.length
+  const previousChats = (dashboard.conversations || []).length
     ? dashboard.conversations
     : [{ id: 'empty-chat', title: 'No conversations yet.' }];
 
-  const savedResumes = dashboard.resumes.length
+  const savedResumes = (dashboard.resumes || []).length
     ? dashboard.resumes
     : [{ id: 'empty-resume', name: 'No resumes yet.', template: '' }];
 
-  const savedBookmarks = dashboard.bookmarks.length
+  const savedBookmarks = (dashboard.bookmarks || []).length
     ? dashboard.bookmarks
     : [{ id: 'empty-bookmark', title: 'No bookmarks yet.' }];
 

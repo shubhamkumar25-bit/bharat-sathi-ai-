@@ -98,7 +98,3 @@ export const firebaseApp = app;
 export const firebaseAuth: Auth | null = app ? getAuth(app) : null;
 export const firestoreDb: Firestore | null = app ? getFirestore(app) : null;
 export const firebaseAnalytics: Analytics | null = app ? getAnalytics(app) : null;
-console.log("API KEY:", import.meta.env.VITE_FIREBASE_API_KEY);
-console.log("AUTH DOMAIN:", import.meta.env.VITE_FIREBASE_AUTH_DOMAIN);
-console.log("PROJECT ID:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
-console.log("APP ID:", import.meta.env.VITE_FIREBASE_APP_ID);
