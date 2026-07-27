@@ -104,9 +104,11 @@ export default function AppShell() {
             to={appPaths.home}
             className="flex shrink-0 items-center gap-2"
           >
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-saffron-500 to-orange-600 text-white font-bold text-lg sm:h-12 sm:w-12 xl:h-14 xl:w-14">
-              भा
-            </div>
+            <img
+              src={logo}
+              alt="BharatSaathi AI Logo"
+              className="h-11 w-11 shrink-0 object-contain sm:h-12 sm:w-12 xl:h-14 xl:w-14"
+            />
 
             <h1 className="hidden whitespace-nowrap text-base font-bold text-slate-900 dark:text-white sm:block xl:text-lg">
               BharatSaathi AI
@@ -369,9 +371,11 @@ export default function AppShell() {
           <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
             <div className="lg:col-span-1">
               <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-saffron-500 to-orange-600 text-white font-bold text-lg">
-                  भा
-                </div>
+                <img
+                  src={logo}
+                  alt="BharatSaathi AI Logo"
+                  className="h-10 w-10 shrink-0 object-contain"
+                />
                 <p className="text-lg font-semibold text-slate-950 dark:text-white">BharatSaathi AI</p>
               </div>
               <p className="mt-3 max-w-sm text-sm leading-6 text-slate-600 dark:text-slate-300">
