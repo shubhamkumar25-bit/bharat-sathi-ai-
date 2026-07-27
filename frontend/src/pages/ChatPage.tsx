@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Mic, MessagesSquare, Send, Volume2, RotateCcw } from 'lucide-react';
+import { Copy, Mic, MessagesSquare, Send, Volume2, RotateCcw, Pause, Play, Loader2 } from 'lucide-react';
 import { clearChatConversation, loadChatHistory, sendChatMessage, type ChatApiMessage } from '@/services/backend';
-import { speak } from '@/services/speechService';
+import { speak, stopSpeaking, isSpeaking, detectTextLocale } from '@/services/speechService';
 
 const welcomeMessage: ChatApiMessage = {
   id: 'welcome',
@@ -56,8 +56,11 @@ export function ChatPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [listening, setListening] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const lastAssistantMessage = useMemo(() => [...messages].reverse().find((message) => message.role === 'assistant'), [messages]);
 
@@ -81,14 +84,26 @@ export function ChatPage() {
   }, [conversationId]);
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, sending]);
 
   useEffect(() => {
     return () => {
       recognitionRef.current?.stop();
+      stopSpeaking();
     };
   }, []);
+
+  useEffect(() => {
+    const checkSpeaking = () => {
+      if (!isSpeaking() && speakingMessageId) {
+        setSpeakingMessageId(null);
+        setIsPaused(false);
+      }
+    };
+    const interval = setInterval(checkSpeaking, 500);
+    return () => clearInterval(interval);
+  }, [speakingMessageId]);
 
   function startListening() {
     const recognition = recognitionRef.current || createSpeechRecognition();
@@ -122,6 +137,31 @@ export function ChatPage() {
     setListening(false);
   }
 
+  function handleVoicePlay(messageId: string, content: string) {
+    if (speakingMessageId === messageId && isPaused) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+      return;
+    }
+
+    if (speakingMessageId === messageId && !isPaused) {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+      return;
+    }
+
+    stopSpeaking();
+    setSpeakingMessageId(messageId);
+    setIsPaused(false);
+    speak(content, detectTextLocale(content));
+  }
+
+  function handleVoiceStop() {
+    stopSpeaking();
+    setSpeakingMessageId(null);
+    setIsPaused(false);
+  }
+
   async function handleSend() {
     const message = draft.trim();
 
@@ -153,11 +193,6 @@ export function ChatPage() {
       window.localStorage.setItem(conversationKey, result.conversationId);
       const serverMsgs = Array.isArray(result?.messages) ? result.messages : [];
       setMessages(serverMsgs.length ? serverMsgs : [...optimisticMessages, { ...welcomeMessage, id: crypto.randomUUID() }]);
-
-      const assistantReply = result.answer?.trim();
-      if (assistantReply) {
-        speak(assistantReply);
-      }
     } catch (submitError) {
       setMessages(messages);
       setError(submitError instanceof Error ? submitError.message : 'Message send nahi hua.');
@@ -187,78 +222,131 @@ export function ChatPage() {
           <MessagesSquare className="h-4 w-4" />
           Multilingual AI Chat
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Automatic Multilingual Conversations</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">Automatic Multilingual Conversations</h1>
         <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
           BharatSaathi AI automatically detects your language (Hindi, Hinglish, English, Tamil, Telugu, Bengali, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Urdu, Odia, etc.) and replies in the exact same language.
         </p>
 
-        <div className="hero-frame space-y-4 p-5 sm:p-6">
-          <div className="flex flex-wrap gap-3">
-            <button type="button" onClick={listening ? stopListening : startListening} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium dark:border-slate-800 dark:bg-slate-950">
-              <Mic className="h-4 w-4 text-saffron-500" />
+        <div className="hero-frame space-y-4 p-4 sm:p-5 lg:p-6">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
+            <button type="button" onClick={listening ? stopListening : startListening} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-2 sm:text-sm">
+              <Mic className={`h-4 w-4 text-saffron-500 ${listening ? 'animate-pulse' : ''}`} />
               {listening ? 'Listening...' : 'Voice Input'}
             </button>
-            <button type="button" onClick={() => lastAssistantMessage && speak(lastAssistantMessage.content)} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium dark:border-slate-800 dark:bg-slate-950">
-              <Volume2 className="h-4 w-4 text-saffron-500" />
-              Voice Output
-            </button>
-            <button type="button" onClick={handleClear} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium dark:border-slate-800 dark:bg-slate-950">
+            <button type="button" onClick={handleClear} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-2 sm:text-sm">
               <RotateCcw className="h-4 w-4 text-saffron-500" />
               Clear Chat
             </button>
           </div>
 
-          <div className="max-h-[30rem] space-y-3 overflow-y-auto pr-1">
+          <div className="flex min-h-[400px] max-h-[50vh] flex-col space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950 sm:max-h-[30rem] sm:p-4">
             {loadingHistory ? (
-              <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-                Conversation history loading...
+              <div className="flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-300">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading conversation history...
               </div>
             ) : null}
 
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={message.role === 'user' ? 'ml-auto max-w-[85%] rounded-3xl bg-slate-950 px-4 py-3 text-sm text-white dark:bg-white dark:text-slate-950' : 'max-w-[85%] rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="whitespace-pre-wrap leading-6">{message.content}</div>
-                {message.role === 'assistant' ? (
-                  <button type="button" onClick={() => handleCopy(message.content)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400">
-                    <Copy className="h-3.5 w-3.5" />
-                    Copy response
-                  </button>
-                ) : null}
+                <div
+                  className={`max-w-[90%] rounded-3xl px-4 py-3 text-sm sm:max-w-[85%] ${
+                    message.role === 'user'
+                      ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950'
+                      : 'border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'
+                  }`}
+                >
+                  <div className="whitespace-pre-wrap leading-6 break-words">{message.content}</div>
+                  <div className="mt-2 flex items-center gap-2">
+                    {message.role === 'assistant' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(message.content)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          Copy
+                        </button>
+                        {speakingMessageId === message.id ? (
+                          <button
+                            type="button"
+                            onClick={isPaused ? () => handleVoicePlay(message.id, message.content) : handleVoiceStop}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400"
+                          >
+                            {isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+                            {isPaused ? 'Resume' : 'Stop'}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleVoicePlay(message.id, message.content)}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400"
+                          >
+                            <Volume2 className="h-3.5 w-3.5" />
+                            Play
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
 
             {sending ? (
-              <div className="max-w-[85%] rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-saffron-500" />
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-saffron-500 [animation-delay:150ms]" />
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-saffron-500 [animation-delay:300ms]" />
-                </span>
+              <div className="flex justify-start">
+                <div className="max-w-[85%] rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-saffron-500" />
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-saffron-500 [animation-delay:150ms]" />
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-saffron-500 [animation-delay:300ms]" />
+                  </span>
+                </div>
               </div>
             ) : null}
 
-            <div ref={scrollRef} />
+            <div ref={messagesEndRef} />
           </div>
 
-          {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">{error}</div> : null}
+          {error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+              {error}
+            </div>
+          ) : null}
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  void handleSend();
-                }
-              }}
-              className="focus-ring flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-              placeholder="Type in any language (Hindi, Hinglish, Tamil, Telugu, Bengali, English...)"
-            />
-            <button type="button" onClick={() => void handleSend()} className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white dark:bg-white dark:text-slate-950" disabled={sending}>
+            <div className="relative flex-1">
+              <input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    void handleSend();
+                  }
+                }}
+                className="focus-ring w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                placeholder="Type in any language (Hindi, Hinglish, Tamil, Telugu, Bengali, English...)"
+              />
+              <button
+                type="button"
+                onClick={listening ? stopListening : startListening}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-400 hover:text-saffron-600 dark:hover:text-saffron-400"
+                aria-label="Voice input"
+              >
+                <Mic className={`h-5 w-5 ${listening ? 'animate-pulse text-saffron-600' : ''}`} />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleSend()}
+              className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white dark:bg-white dark:text-slate-950"
+              disabled={sending}
+            >
               Send
               <Send className="h-4 w-4" />
             </button>
@@ -266,13 +354,13 @@ export function ChatPage() {
         </div>
       </section>
 
-      <aside className="glass rounded-3xl p-6">
+      <aside className="hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:block dark:border-slate-800 dark:bg-slate-900">
         <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Gemini Multilingual Prompt</h2>
         <pre className="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100 whitespace-pre-wrap">
 {`You are BharatSaathi AI, a multilingual AI assistant for Indian users. Detect the language of the user's latest message and always respond in the same language. If the user writes in Hinglish or another mixed-language style, respond naturally in the same mixed-language style. Never switch to Hindi or English unless the user does so.`}
         </pre>
         <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-          The response is automatically spoken in its matching native script locale (Devanagari, Tamil, Telugu, Bengali, Gujarati, etc.).
+          Click the speaker icon on AI responses to hear them. Voice will only play when you click the button.
         </div>
       </aside>
     </div>

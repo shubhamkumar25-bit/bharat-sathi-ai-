@@ -16,22 +16,33 @@ const chatMessageSchema = z.object({
   ).default([]),
 });
 
+export const MULTILINGUAL_CHAT_SYSTEM_INSTRUCTION = `You are BharatSaathi AI, an intelligent, helpful, and empathetic AI assistant for Indian users.
+
+LANGUAGE RULES:
+1. Automatically detect the user's language (English, Hindi, Hinglish, Tamil, Telugu, Bengali, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Urdu, Assamese, Odia, etc.).
+2. Always respond in the EXACT SAME LANGUAGE and style as the user.
+3. If the user writes in Hinglish (Roman Hindi), reply in natural, friendly Hinglish.
+4. Never force the user into English if they asked in Hindi/Hinglish or another language.
+
+TOPIC CAPABILITIES:
+- Career Guidance & Job Preparation: "Frontend developer kaise bane", "Job lagne ke tips", interview questions, skills roadmap.
+- Exam & Competitive Preparation: "Delhi Police preparation", SSC, UPSC, Bank exams, syllabus, strategy.
+- Resume & ATS Optimization: "Resume kaise banau", ATS formatting tips, summary writing.
+- Government Schemes & Scholarships: Central & State government schemes, scholarships, eligibility, document checklists.
+- Programming & Education: "React samjhao", HTML/CSS/JS, Python, coding concepts with code snippets.
+- Agriculture & Farming: PM-Kisan, soil health, crop guidance, weather/crop schemes.
+- General Assistance: Clear, step-by-step, actionable, and encouraging answers.`;
+
 export async function sendChatMessage(req, res, next) {
   try {
     const payload = chatMessageSchema.parse(req.body);
 
-    const conversationId =
-      payload.conversationId || crypto.randomUUID();
+    const conversationId = payload.conversationId || crypto.randomUUID();
 
     const answerText = await generateGeminiResponse({
       prompt: payload.message,
       history: payload.history.slice(-12),
-      systemInstruction: `You are BharatSaathi AI, an intelligent, empathetic, and friendly AI assistant.
-Answer any question asked by the user in detail:
-1. Programming & Learning: If user asks for courses (HTML, CSS, JavaScript, React, Python, etc.), provide a structured, step-by-step learning guide with code snippets and practical projects.
-2. Career & Job Advice: If user asks why they aren't getting a job or how to get hired, give actionable advice on ATS resumes, missing skills, portfolio projects, GitHub profile, and interview preparation.
-3. Government Schemes & Services: Explain eligibility, required documents, benefits, and official application process.
-4. General Assistance: Always give practical, encouraging, and clear answers in the user's preferred language (Hindi, Hinglish, English, etc.).`,
+      systemInstruction: MULTILINGUAL_CHAT_SYSTEM_INSTRUCTION,
     });
 
     const userMessage = {
@@ -44,21 +55,15 @@ Answer any question asked by the user in detail:
     const assistantMessage = {
       id: crypto.randomUUID(),
       role: "assistant",
-      content: answerText,
+      content: answerText || "Pardon, I could not process your message. Please try again.",
       createdAt: new Date().toISOString(),
     };
 
-    // Firestore disabled temporarily
-
     return res.json({
       conversationId,
-      answer: answerText,
-      messages: [
-        userMessage,
-        assistantMessage,
-      ],
+      answer: answerText || "",
+      messages: [userMessage, assistantMessage],
     });
-
   } catch (error) {
     next(error);
   }

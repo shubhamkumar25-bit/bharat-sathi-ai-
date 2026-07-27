@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 import { searchJobs } from "../services/jobService.js";
 import {
@@ -28,7 +27,7 @@ export async function generateChatReply(req, res, next) {
       prompt: payload.prompt,
       history: payload.history,
       systemInstruction:
-        "Provide practical solutions for Indian students, job seekers, farmers, workers, and citizens.",
+        "You are BharatSaathi AI, a helpful, intelligent assistant for Indian users. Respond in the same language as the user.",
     });
 
     res.json({ answer });
@@ -41,14 +40,19 @@ export async function generateTaskOutput(req, res, next) {
   try {
     const payload = geminiSchema.parse(req.body);
 
-    // Real Job Search
+    // Job Search
     if (payload.task === "Job Search") {
-      const jobs = await searchJobs(payload.prompt);
+      let searchParams = {};
+      try {
+        searchParams = JSON.parse(payload.prompt);
+      } catch {
+        searchParams = { skills: payload.prompt, language: payload.language || "English" };
+      }
+
+      const result = await searchJobs(searchParams);
 
       return res.json({
-        answer: JSON.stringify({
-          jobs,
-        }),
+        answer: JSON.stringify(result),
       });
     }
 
