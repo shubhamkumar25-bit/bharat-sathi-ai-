@@ -17,12 +17,16 @@ import { FarmerSupportPage } from "./pages/FarmerSupportPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AdminDashboard } from "./pages/AdminDashboard";
+import AboutUsPage from "./pages/AboutUsPage";
+import ContactUsPage from "./pages/ContactUsPage";
 
 export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
         <Route path={appPaths.home} element={<HomePage />} />
+        <Route path={appPaths.aboutUs} element={<AboutUsPage />} />
+        <Route path={appPaths.contactUs} element={<ContactUsPage />} />
 
         <Route
           path={appPaths.dashboard}

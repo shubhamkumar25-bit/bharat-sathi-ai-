@@ -9,7 +9,9 @@ export const appPaths = {
   governmentSchemes: '/government-schemes',
   farmerSupport: '/farmer-support',
   studentSupport: '/student-support',
-  profile: '/profile'
+  profile: '/profile',
+  aboutUs: '/about-us',
+  contactUs: '/contact-us'
 };
 
 export const publicNav = [appPaths.home, appPaths.login, appPaths.register];

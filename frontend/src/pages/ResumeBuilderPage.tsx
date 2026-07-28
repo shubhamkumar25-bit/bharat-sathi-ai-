@@ -26,6 +26,9 @@ type ProjectEntry = {
   name: string;
   description: string;
   technologies: string;
+  githubLink: string;
+  liveDemoLink: string;
+  docLink: string;
 };
 
 type CertificationEntry = {
@@ -33,6 +36,9 @@ type CertificationEntry = {
   name: string;
   issuer: string;
   date: string;
+  credentialId: string;
+  verificationLink: string;
+  certificateLink: string;
 };
 
 type ResumeDraft = {
@@ -44,8 +50,11 @@ type ResumeDraft = {
   linkedin: string;
   github: string;
   portfolio: string;
+  website: string;
   summary: string;
-  skills: string;
+  technicalSkills: string;
+  softSkills: string;
+  tools: string;
   languages: string;
   achievements: string;
   education: EducationEntry[];
@@ -68,8 +77,11 @@ const defaultDraft: ResumeDraft = {
   linkedin: '',
   github: '',
   portfolio: '',
+  website: '',
   summary: '',
-  skills: '',
+  technicalSkills: '',
+  softSkills: '',
+  tools: '',
   languages: '',
   achievements: '',
   education: [],
@@ -143,7 +155,7 @@ function buildPayload(draft: ResumeDraft, objective: string, template: ResumeTem
     education: formatEducationArray(draft.education),
     experience: formatExperienceArray(draft.experience),
     projects: formatProjectsArray(draft.projects),
-    skills: toListItems(draft.skills, 'name'),
+    skills: [...toListItems(draft.technicalSkills, 'name'), ...toListItems(draft.softSkills, 'name'), ...toListItems(draft.tools, 'name')],
     certifications: formatCertificationsArray(draft.certifications),
     achievements: toListItems(draft.achievements, 'detail'),
     languages: toListItems(draft.languages, 'name'),
@@ -188,7 +200,7 @@ function buildDocxDocument(draft: ResumeDraft, aiSummary: string) {
           new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Education', bold: true })] }),
           new Paragraph({ text: educationText || '-' }),
           new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Skills', bold: true })] }),
-          new Paragraph({ text: draft.skills || '-' }),
+          new Paragraph({ text: [draft.technicalSkills, draft.softSkills, draft.tools].filter(Boolean).join('\n') || '-' }),
           new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Experience', bold: true })] }),
           new Paragraph({ text: experienceText || '-' }),
           new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: 'Projects', bold: true })] }),
@@ -211,6 +223,7 @@ export function ResumeBuilderPage() {
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState<'pdf' | 'docx' | ''>('');
   const [status, setStatus] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const storedDraft = window.localStorage.getItem(draftStorageKey);
@@ -233,30 +246,165 @@ export function ResumeBuilderPage() {
     window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
   }, [draft]);
 
+  // Auto-save with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (Object.keys(errors).length === 0) {
+        setStatus('Auto-saved locally');
+        setTimeout(() => setStatus(''), 2000);
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [draft, errors]);
+
   const atsScore = useMemo(() => {
     const signalCount = [
       draft.summary,
       draft.education.length > 0,
-      draft.skills,
+      draft.technicalSkills,
+      draft.softSkills,
+      draft.tools,
       draft.experience.length > 0,
       draft.projects.length > 0,
     ].filter((item) => typeof item === 'string' ? item.trim().length > 0 : item).length;
-    return Math.min(98, 45 + signalCount * 10 + Math.min(15, splitLines(draft.skills).length * 3));
+    const allSkills = [draft.technicalSkills, draft.softSkills, draft.tools].join(' ');
+    return Math.min(98, 45 + signalCount * 10 + Math.min(15, splitLines(allSkills).length * 3));
   }, [draft]);
+
+  const jobReadinessScore = useMemo(() => {
+    let score = 0;
+    const maxScore = 100;
+
+    // Personal Details (15 points)
+    if (draft.name.trim()) score += 5;
+    if (draft.title.trim()) score += 5;
+    if (draft.location.trim()) score += 5;
+
+    // Education - Mandatory (20 points)
+    if (draft.education.length > 0) {
+      const hasCompleteEducation = draft.education.some(edu => 
+        edu.degree.trim() && edu.institution.trim() && edu.year.trim()
+      );
+      if (hasCompleteEducation) score += 20;
+    }
+
+    // Contact Information (10 points)
+    if (draft.email.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email)) score += 5;
+    if (draft.phone.trim() && /^\+91 \d{10}$/.test(draft.phone)) score += 5;
+
+    // Professional Summary (10 points)
+    if (draft.summary.trim() && draft.summary.split(' ').length >= 20) score += 10;
+
+    // Experience (15 points)
+    if (draft.experience.length > 0) {
+      const hasCompleteExperience = draft.experience.some(exp => 
+        exp.title.trim() && exp.company.trim() && exp.duration.trim()
+      );
+      if (hasCompleteExperience) score += 15;
+    }
+
+    // Projects (10 points)
+    if (draft.projects.length > 0) {
+      const hasCompleteProject = draft.projects.some(proj => 
+        proj.name.trim() && proj.technologies.trim()
+      );
+      if (hasCompleteProject) score += 10;
+    }
+
+    // Skills (10 points)
+    const hasTechnicalSkills = draft.technicalSkills.trim().length > 0;
+    const hasSoftSkills = draft.softSkills.trim().length > 0;
+    const hasTools = draft.tools.trim().length > 0;
+    if (hasTechnicalSkills) score += 4;
+    if (hasSoftSkills) score += 3;
+    if (hasTools) score += 3;
+
+    // Certifications (5 points)
+    if (draft.certifications.length > 0) {
+      const hasCompleteCert = draft.certifications.some(cert => 
+        cert.name.trim() && cert.issuer.trim() && cert.date.trim()
+      );
+      if (hasCompleteCert) score += 5;
+    }
+
+    // Social Links (5 points)
+    if (draft.linkedin.trim() && isValidUrl(draft.linkedin)) score += 2;
+    if ((draft.github.trim() && isValidUrl(draft.github)) || (draft.portfolio.trim() && isValidUrl(draft.portfolio))) score += 3;
+
+    // ATS Score Bonus (10 points)
+    if (atsScore >= 80) score += 10;
+    else if (atsScore >= 60) score += 7;
+    else if (atsScore >= 40) score += 4;
+    else if (atsScore >= 20) score += 2;
+
+    return Math.min(maxScore, score);
+  }, [draft, atsScore]);
+
+  const getJobReadinessStatus = (score: number) => {
+    if (score >= 80) return 'Ready to Apply ✅';
+    if (score >= 60) return 'Almost Ready ⚠️';
+    if (score >= 40) return 'Work in Progress 🔄';
+    return 'Just Started 📝';
+  };
 
   async function generateResume() {
     const educationText = draft.education.map(edu => `${edu.degree} from ${edu.institution} (${edu.year})`).join('\n');
     const experienceText = draft.experience.map(exp => `${exp.title} at ${exp.company} (${exp.duration})`).join('\n');
     const projectsText = draft.projects.map(proj => `${proj.name} - ${proj.technologies}`).join('\n');
 
-    const prompt = `Create a professional ATS-friendly resume summary and improvement suggestions for this candidate.\n\nName: ${draft.name}\nTitle: ${draft.title}\nLocation: ${draft.location}\nEducation:\n${educationText}\nSkills:\n${draft.skills}\nExperience:\n${experienceText}\nProjects:\n${projectsText}\n\nReturn concise, practical guidance in simple Hindi or mixed Hindi-English. Do not overwrite the user's existing summary.`;
+    const prompt = `You are an expert ATS resume optimizer. Analyze this resume and provide specific, actionable improvements.
+
+Candidate Information:
+Name: ${draft.name}
+Title: ${draft.title}
+Location: ${draft.location}
+
+Education:
+${educationText}
+
+Technical Skills:
+${draft.technicalSkills}
+
+Soft Skills:
+${draft.softSkills}
+
+Tools & Technologies:
+${draft.tools}
+
+Experience:
+${experienceText}
+
+Projects:
+${projectsText}
+
+Provide your response in this exact format:
+
+**ATS Score Analysis:**
+[Give a score out of 100 and explain why]
+
+**Missing Keywords:**
+[List 5-10 important ATS keywords missing from the resume]
+
+**Professional Summary Improvement:**
+[Provide an improved, ATS-friendly professional summary]
+
+**Action Verbs Suggestions:**
+[List 5-10 strong action verbs to replace weak ones]
+
+**Skills Recommendations:**
+[Suggest missing skills based on the job title]
+
+**Grammar & Spelling Fixes:**
+[Point out any grammar or spelling issues]
+
+Return your response in simple Hindi or mixed Hindi-English. Be specific and practical.`;
 
     try {
       setLoadingSummary(true);
-      setStatus('Generating AI summary...');
+      setStatus('Analyzing resume with AI...');
       const result = await generateTaskOutput({ task: 'Resume Builder', prompt });
       setAiSummary(result.answer.trim());
-      setStatus('AI summary generated successfully.');
+      setStatus('AI analysis completed successfully.');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Resume generation failed.');
     } finally {
@@ -265,6 +413,11 @@ export function ResumeBuilderPage() {
   }
 
   async function saveDraft() {
+    if (!validateDraft()) {
+      setStatus('Please fix validation errors before saving.');
+      return;
+    }
+
     const objective = draft.summary.trim() || aiSummary.trim();
     const payload = buildPayload(draft, objective, selectedTemplate);
 
@@ -295,6 +448,11 @@ export function ResumeBuilderPage() {
   }
 
   async function downloadPdf() {
+    if (!validateDraft()) {
+      setStatus('Please fix validation errors before exporting.');
+      return;
+    }
+
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
     const marginX = 48;
     let cursorY = 56;
@@ -318,6 +476,15 @@ export function ResumeBuilderPage() {
       cursorY += wrapped.length * 15 + 20;
     };
 
+    const writeClickableLink = (text: string, url: string) => {
+      if (url && isValidUrl(url)) {
+        doc.setTextColor(59, 130, 246);
+        doc.textWithLink(text, marginX, cursorY, { url });
+        cursorY += 15;
+        doc.setTextColor(51, 65, 85);
+      }
+    };
+
     const educationText = draft.education.map(edu => `${edu.degree} - ${edu.institution} (${edu.year})`).join('\n');
     const experienceText = draft.experience.map(exp => `${exp.title} at ${exp.company} (${exp.duration})`).join('\n');
     const projectsText = draft.projects.map(proj => `${proj.name} - ${proj.technologies}`).join('\n');
@@ -336,9 +503,19 @@ export function ResumeBuilderPage() {
     doc.text([draft.email, draft.phone, draft.location].filter(Boolean).join(' | ') || '-', marginX, cursorY);
     cursorY += 28;
 
+    // Add clickable social links
+    if (draft.linkedin || draft.github || draft.portfolio || draft.website) {
+      cursorY += 10;
+      if (draft.linkedin) writeClickableLink('LinkedIn', draft.linkedin);
+      if (draft.github) writeClickableLink('GitHub', draft.github);
+      if (draft.portfolio) writeClickableLink('Portfolio', draft.portfolio);
+      if (draft.website) writeClickableLink('Website', draft.website);
+      cursorY += 10;
+    }
+
     writeSection('Professional Summary', draft.summary || aiSummary);
     writeSection('Education', educationText);
-    writeSection('Skills', draft.skills);
+    writeSection('Skills', [draft.technicalSkills, draft.softSkills, draft.tools].filter(Boolean).join('\n'));
     writeSection('Experience', experienceText);
     writeSection('Projects', projectsText);
     writeSection('Certifications', certificationsText);
@@ -346,6 +523,7 @@ export function ResumeBuilderPage() {
     writeSection('Achievements', draft.achievements);
 
     doc.save(`${(draft.name || 'bharatsaathi-resume').replace(/\s+/g, '-').toLowerCase()}.pdf`);
+    setStatus('PDF exported successfully.');
   }
 
   async function downloadDocx() {
@@ -365,8 +543,66 @@ export function ResumeBuilderPage() {
     }
   }
 
+  function validateDraft(): boolean {
+    const newErrors: Record<string, string> = {};
+
+    if (!draft.name.trim()) newErrors.name = 'Name is required';
+    if (!draft.email.trim()) newErrors.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email)) newErrors.email = 'Invalid email format';
+    if (!draft.phone.trim()) newErrors.phone = 'Phone number is required';
+    else if (!/^\+91 \d{10}$/.test(draft.phone)) newErrors.phone = 'Phone must be in format: +91 XXXXXXXXXX';
+    if (!draft.title.trim()) newErrors.title = 'Professional title is required';
+    if (!draft.location.trim()) newErrors.location = 'Location is required';
+
+    if (draft.education.length === 0) {
+      newErrors.education = 'At least one education entry is required';
+    } else {
+      draft.education.forEach((edu, index) => {
+        if (!edu.degree.trim()) newErrors[`education_${index}_degree`] = 'Degree is required';
+        if (!edu.institution.trim()) newErrors[`education_${index}_institution`] = 'Institution is required';
+        if (!edu.year.trim()) newErrors[`education_${index}_year`] = 'Year is required';
+      });
+    }
+
+    // URL validation
+    const urlFields = ['linkedin', 'github', 'portfolio', 'website'];
+    urlFields.forEach(field => {
+      const value = draft[field as keyof ResumeDraft] as string;
+      if (value && !isValidUrl(value)) {
+        newErrors[field] = 'Invalid URL format';
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  function isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   function updateField(field: keyof ResumeDraft, value: string) {
+    if (field === 'phone') {
+      // Indian phone number validation: +91 followed by 10 digits
+      const cleaned = value.replace(/\D/g, '');
+      if (cleaned.length === 10) {
+        value = '+91 ' + cleaned;
+      } else if (cleaned.length === 12 && cleaned.startsWith('91')) {
+        value = '+91 ' + cleaned.slice(2);
+      } else if (cleaned.length === 13 && cleaned.startsWith('9191')) {
+        value = '+91 ' + cleaned.slice(4);
+      }
+    }
     setDraft((current) => ({ ...current, [field]: value }));
+    // Clear error for this field when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
   }
 
   function addEducation() {
@@ -375,6 +611,16 @@ export function ResumeBuilderPage() {
       education: [...current.education, { id: crypto.randomUUID(), degree: '', institution: '', year: '', description: '' }],
     }));
   }
+
+  // Ensure at least one education entry exists
+  useEffect(() => {
+    if (draft.education.length === 0) {
+      setDraft((current) => ({
+        ...current,
+        education: [{ id: crypto.randomUUID(), degree: '', institution: '', year: '', description: '' }],
+      }));
+    }
+  }, []);
 
   function updateEducation(id: string, field: keyof EducationEntry, value: string) {
     setDraft((current) => ({
@@ -414,7 +660,7 @@ export function ResumeBuilderPage() {
   function addProject() {
     setDraft((current) => ({
       ...current,
-      projects: [...current.projects, { id: crypto.randomUUID(), name: '', description: '', technologies: '' }],
+      projects: [...current.projects, { id: crypto.randomUUID(), name: '', description: '', technologies: '', githubLink: '', liveDemoLink: '', docLink: '' }],
     }));
   }
 
@@ -435,7 +681,7 @@ export function ResumeBuilderPage() {
   function addCertification() {
     setDraft((current) => ({
       ...current,
-      certifications: [...current.certifications, { id: crypto.randomUUID(), name: '', issuer: '', date: '' }],
+      certifications: [...current.certifications, { id: crypto.randomUUID(), name: '', issuer: '', date: '', credentialId: '', verificationLink: '', certificateLink: '' }],
     }));
   }
 
@@ -480,15 +726,16 @@ export function ResumeBuilderPage() {
               Save locally, sync to Firestore when authenticated, generate an AI improvement summary, and export to PDF or DOCX from the same draft.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[
               ['ATS Score', `${atsScore}`],
-              ['Sections', `${[draft.summary, draft.education.length > 0, draft.skills, draft.experience.length > 0, draft.projects.length > 0].filter((item) => typeof item === 'string' && item.trim().length > 0 || typeof item === 'boolean' && item).length}`],
-              ['Status', user ? 'Cloud sync on' : 'Local draft only'],
-            ].map(([label, value]) => (
+              ['Sections', `${[draft.summary, draft.education.length > 0, draft.technicalSkills, draft.softSkills, draft.tools, draft.experience.length > 0, draft.projects.length > 0].filter((item) => typeof item === 'string' && item.trim().length > 0 || typeof item === 'boolean' && item).length}`],
+              ['Job Readiness', `${jobReadinessScore}%`, getJobReadinessStatus(jobReadinessScore)],
+            ].map(([label, value, status]) => (
               <div key={label} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                 <div className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{label}</div>
                 <div className="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">{value}</div>
+                {status && <div className="mt-1 text-xs text-slate-600 dark:text-slate-400">{status}</div>}
               </div>
             ))}
           </div>
@@ -538,20 +785,22 @@ export function ResumeBuilderPage() {
               ['name', 'Full Name'],
               ['title', 'Professional Title'],
               ['email', 'Email'],
-              ['phone', 'Phone'],
+              ['phone', 'Phone (+91 XXXXXXXXXX)'],
               ['location', 'Location'],
               ['linkedin', 'LinkedIn'],
               ['github', 'GitHub'],
               ['portfolio', 'Portfolio'],
+              ['website', 'Personal Website'],
             ].map(([field, label]) => (
               <label key={field} className="space-y-2 text-sm">
                 <span className="font-medium text-slate-700 dark:text-slate-200">{label}</span>
                 <input
                   value={typeof draft[field as keyof ResumeDraft] === 'string' ? draft[field as keyof ResumeDraft] as string : ''}
                   onChange={(event) => updateField(field as keyof ResumeDraft, event.target.value)}
-                  className="focus-ring w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                  className={`focus-ring w-full rounded-2xl border px-4 py-3 text-slate-900 placeholder:text-slate-400 dark:bg-slate-950 dark:text-white ${errors[field] ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30' : 'border-slate-200 bg-white dark:border-slate-800'}`}
                   placeholder={label}
                 />
+                {errors[field] && <p className="text-xs text-red-600 dark:text-red-400">{errors[field]}</p>}
               </label>
             ))}
           </div>
@@ -559,7 +808,9 @@ export function ResumeBuilderPage() {
           <div className="mt-4 grid gap-4">
             {[
               ['summary', 'Professional Summary'],
-              ['skills', 'Skills'],
+              ['technicalSkills', 'Technical Skills'],
+              ['softSkills', 'Soft Skills'],
+              ['tools', 'Tools & Technologies'],
               ['languages', 'Languages'],
               ['achievements', 'Achievements'],
             ].map(([field, label]) => (
@@ -583,27 +834,36 @@ export function ResumeBuilderPage() {
                 <Plus className="h-3 w-3" /> Add Education
               </button>
             </div>
-            {Array.isArray(draft.education) && draft.education.map((edu) => (
+            {Array.isArray(draft.education) && draft.education.map((edu, index) => (
               <div key={edu.id} className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input
-                    value={edu.degree}
-                    onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
-                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-                    placeholder="Degree (e.g., B.Tech Computer Science)"
-                  />
-                  <input
-                    value={edu.institution}
-                    onChange={(e) => updateEducation(edu.id, 'institution', e.target.value)}
-                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-                    placeholder="Institution"
-                  />
-                  <input
-                    value={edu.year}
-                    onChange={(e) => updateEducation(edu.id, 'year', e.target.value)}
-                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-                    placeholder="Year (e.g., 2020-2024)"
-                  />
+                  <div>
+                    <input
+                      value={edu.degree}
+                      onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
+                      className={`focus-ring w-full rounded-xl border px-3 py-2 text-sm text-slate-900 dark:bg-slate-950 dark:text-white ${errors[`education_${index}_degree`] ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30' : 'border-slate-200 bg-white dark:border-slate-800'}`}
+                      placeholder="Degree (e.g., B.Tech Computer Science)"
+                    />
+                    {errors[`education_${index}_degree`] && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errors[`education_${index}_degree`]}</p>}
+                  </div>
+                  <div>
+                    <input
+                      value={edu.institution}
+                      onChange={(e) => updateEducation(edu.id, 'institution', e.target.value)}
+                      className={`focus-ring w-full rounded-xl border px-3 py-2 text-sm text-slate-900 dark:bg-slate-950 dark:text-white ${errors[`education_${index}_institution`] ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30' : 'border-slate-200 bg-white dark:border-slate-800'}`}
+                      placeholder="Institution"
+                    />
+                    {errors[`education_${index}_institution`] && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errors[`education_${index}_institution`]}</p>}
+                  </div>
+                  <div>
+                    <input
+                      value={edu.year}
+                      onChange={(e) => updateEducation(edu.id, 'year', e.target.value)}
+                      className={`focus-ring w-full rounded-xl border px-3 py-2 text-sm text-slate-900 dark:bg-slate-950 dark:text-white ${errors[`education_${index}_year`] ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/30' : 'border-slate-200 bg-white dark:border-slate-800'}`}
+                      placeholder="Year (e.g., 2020-2024)"
+                    />
+                    {errors[`education_${index}_year`] && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errors[`education_${index}_year`]}</p>}
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeEducation(edu.id)}
@@ -621,6 +881,7 @@ export function ResumeBuilderPage() {
                 />
               </div>
             ))}
+            {errors.education && <p className="text-xs text-red-600 dark:text-red-400">{errors.education}</p>}
           </div>
 
           <div className="mt-6 space-y-4">
@@ -692,10 +953,28 @@ export function ResumeBuilderPage() {
                     className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
                     placeholder="Technologies (e.g., React, Node.js)"
                   />
+                  <input
+                    value={proj.githubLink}
+                    onChange={(e) => updateProject(proj.id, 'githubLink', e.target.value)}
+                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    placeholder="GitHub Repository URL"
+                  />
+                  <input
+                    value={proj.liveDemoLink}
+                    onChange={(e) => updateProject(proj.id, 'liveDemoLink', e.target.value)}
+                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    placeholder="Live Demo URL"
+                  />
+                  <input
+                    value={proj.docLink}
+                    onChange={(e) => updateProject(proj.id, 'docLink', e.target.value)}
+                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    placeholder="Documentation/Google Drive URL"
+                  />
                   <button
                     type="button"
                     onClick={() => removeProject(proj.id)}
-                    className="focus-ring col-span-2 inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+                    className="focus-ring inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
                   >
                     <Trash2 className="h-3 w-3" /> Remove
                   </button>
@@ -719,32 +998,52 @@ export function ResumeBuilderPage() {
               </button>
             </div>
             {Array.isArray(draft.certifications) && draft.certifications.map((cert) => (
-              <div key={cert.id} className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950 sm:grid-cols-4">
-                <input
-                  value={cert.name}
-                  onChange={(e) => updateCertification(cert.id, 'name', e.target.value)}
-                  className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-                  placeholder="Certification Name"
-                />
-                <input
-                  value={cert.issuer}
-                  onChange={(e) => updateCertification(cert.id, 'issuer', e.target.value)}
-                  className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-                  placeholder="Issuer"
-                />
-                <input
-                  value={cert.date}
-                  onChange={(e) => updateCertification(cert.id, 'date', e.target.value)}
-                  className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-                  placeholder="Date"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeCertification(cert.id)}
-                  className="focus-ring inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
-                >
-                  <Trash2 className="h-3 w-3" /> Remove
-                </button>
+              <div key={cert.id} className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <input
+                    value={cert.name}
+                    onChange={(e) => updateCertification(cert.id, 'name', e.target.value)}
+                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    placeholder="Certification Name"
+                  />
+                  <input
+                    value={cert.issuer}
+                    onChange={(e) => updateCertification(cert.id, 'issuer', e.target.value)}
+                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    placeholder="Issuer"
+                  />
+                  <input
+                    value={cert.date}
+                    onChange={(e) => updateCertification(cert.id, 'date', e.target.value)}
+                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    placeholder="Date"
+                  />
+                  <input
+                    value={cert.credentialId}
+                    onChange={(e) => updateCertification(cert.id, 'credentialId', e.target.value)}
+                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    placeholder="Credential ID (optional)"
+                  />
+                  <input
+                    value={cert.verificationLink}
+                    onChange={(e) => updateCertification(cert.id, 'verificationLink', e.target.value)}
+                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    placeholder="Verification URL"
+                  />
+                  <input
+                    value={cert.certificateLink}
+                    onChange={(e) => updateCertification(cert.id, 'certificateLink', e.target.value)}
+                    className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                    placeholder="Certificate/Google Drive URL"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeCertification(cert.id)}
+                    className="focus-ring col-span-2 inline-flex items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+                  >
+                    <Trash2 className="h-3 w-3" /> Remove
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -774,6 +1073,12 @@ export function ResumeBuilderPage() {
               <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
                 {[draft.email, draft.phone, draft.location].filter(Boolean).join(' | ') || 'Email | Phone | Location'}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                {draft.linkedin && <a href={draft.linkedin} target="_blank" rel="noopener noreferrer" className="text-saffron-600 hover:underline dark:text-saffron-400">LinkedIn</a>}
+                {draft.github && <a href={draft.github} target="_blank" rel="noopener noreferrer" className="text-saffron-600 hover:underline dark:text-saffron-400">GitHub</a>}
+                {draft.portfolio && <a href={draft.portfolio} target="_blank" rel="noopener noreferrer" className="text-saffron-600 hover:underline dark:text-saffron-400">Portfolio</a>}
+                {draft.website && <a href={draft.website} target="_blank" rel="noopener noreferrer" className="text-saffron-600 hover:underline dark:text-saffron-400">Website</a>}
+              </div>
             </div>
 
             <div>
@@ -793,8 +1098,16 @@ export function ResumeBuilderPage() {
             </div>
 
             <div>
-              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Skills</h4>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-200">{draft.skills || 'List technical and non-technical skills.'}</p>
+              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Technical Skills</h4>
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-200">{draft.technicalSkills || 'List your technical skills.'}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Soft Skills</h4>
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-200">{draft.softSkills || 'List your soft skills.'}</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Tools & Technologies</h4>
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-200">{draft.tools || 'List tools and technologies you use.'}</p>
             </div>
 
             <div>
@@ -810,11 +1123,17 @@ export function ResumeBuilderPage() {
 
             <div>
               <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Projects</h4>
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 space-y-3">
                 {draft.projects.length > 0 ? draft.projects.map((proj) => (
-                  <p key={proj.id} className="text-sm leading-7 text-slate-700 dark:text-slate-200">
-                    <strong>{proj.name}</strong> - {proj.technologies}
-                  </p>
+                  <div key={proj.id} className="text-sm leading-7 text-slate-700 dark:text-slate-200">
+                    <p><strong>{proj.name}</strong> - {proj.technologies}</p>
+                    {proj.description && <p className="mt-1 text-xs text-slate-500">{proj.description}</p>}
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                      {proj.githubLink && <a href={proj.githubLink} target="_blank" rel="noopener noreferrer" className="text-saffron-600 hover:underline dark:text-saffron-400">GitHub</a>}
+                      {proj.liveDemoLink && <a href={proj.liveDemoLink} target="_blank" rel="noopener noreferrer" className="text-saffron-600 hover:underline dark:text-saffron-400">Live Demo</a>}
+                      {proj.docLink && <a href={proj.docLink} target="_blank" rel="noopener noreferrer" className="text-saffron-600 hover:underline dark:text-saffron-400">Documentation</a>}
+                    </div>
+                  </div>
                 )) : <p className="text-sm leading-7 text-slate-700 dark:text-slate-200">Mention live projects, internships, or case studies.</p>}
               </div>
             </div>
@@ -822,11 +1141,16 @@ export function ResumeBuilderPage() {
             {draft.certifications.length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Certifications</h4>
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-3">
                   {draft.certifications.map((cert) => (
-                    <p key={cert.id} className="text-sm leading-7 text-slate-700 dark:text-slate-200">
-                      <strong>{cert.name}</strong> - {cert.issuer} ({cert.date})
-                    </p>
+                    <div key={cert.id} className="text-sm leading-7 text-slate-700 dark:text-slate-200">
+                      <p><strong>{cert.name}</strong> - {cert.issuer} ({cert.date})</p>
+                      {cert.credentialId && <p className="text-xs text-slate-500">Credential ID: {cert.credentialId}</p>}
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                        {cert.verificationLink && <a href={cert.verificationLink} target="_blank" rel="noopener noreferrer" className="text-saffron-600 hover:underline dark:text-saffron-400">Verify</a>}
+                        {cert.certificateLink && <a href={cert.certificateLink} target="_blank" rel="noopener noreferrer" className="text-saffron-600 hover:underline dark:text-saffron-400">Certificate</a>}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
