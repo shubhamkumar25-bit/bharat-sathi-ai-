@@ -19,6 +19,9 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import AboutUsPage from "./pages/AboutUsPage";
 import ContactUsPage from "./pages/ContactUsPage";
+import CareerPage from "./pages/CareerPage";
+import BlogPage from "./pages/BlogPage";
+import TeamPage from "./pages/TeamPage";
 
 export default function App() {
   return (
@@ -27,6 +30,9 @@ export default function App() {
         <Route path={appPaths.home} element={<HomePage />} />
         <Route path={appPaths.aboutUs} element={<AboutUsPage />} />
         <Route path={appPaths.contactUs} element={<ContactUsPage />} />
+        <Route path={appPaths.careers} element={<CareerPage />} />
+        <Route path={appPaths.blog} element={<BlogPage />} />
+        <Route path={appPaths.team} element={<TeamPage />} />
 
         <Route
           path={appPaths.dashboard}

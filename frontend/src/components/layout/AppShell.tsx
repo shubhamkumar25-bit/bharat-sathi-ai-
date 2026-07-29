@@ -408,9 +408,9 @@ export default function AppShell() {
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-950 dark:text-white">Company</h3>
               <div className="grid gap-3 text-sm">
                 <Link to={appPaths.aboutUs} className="text-slate-600 transition hover:text-saffron-600 dark:text-slate-300 dark:hover:text-saffron-400">About Us</Link>
-                <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-left text-slate-600 transition hover:text-saffron-600 dark:text-slate-300 dark:hover:text-saffron-400">Careers</button>
-                <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-left text-slate-600 transition hover:text-saffron-600 dark:text-slate-300 dark:hover:text-saffron-400">Blog</button>
-                <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-left text-slate-600 transition hover:text-saffron-600 dark:text-slate-300 dark:hover:text-saffron-400">Press Kit</button>
+                <Link to={appPaths.team} className="text-slate-600 transition hover:text-saffron-600 dark:text-slate-300 dark:hover:text-saffron-400">Our Team</Link>
+                <Link to={appPaths.careers} className="text-slate-600 transition hover:text-saffron-600 dark:text-slate-300 dark:hover:text-saffron-400">Careers</Link>
+                <Link to={appPaths.blog} className="text-slate-600 transition hover:text-saffron-600 dark:text-slate-300 dark:hover:text-saffron-400">Blog</Link>
               </div>
             </div>
 

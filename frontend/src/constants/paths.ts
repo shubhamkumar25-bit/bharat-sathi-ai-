@@ -11,7 +11,10 @@ export const appPaths = {
   studentSupport: '/student-support',
   profile: '/profile',
   aboutUs: '/about-us',
-  contactUs: '/contact-us'
+  contactUs: '/contact-us',
+  careers: '/careers',
+  blog: '/blog',
+  team: '/team'
 };
 
 export const publicNav = [appPaths.home, appPaths.login, appPaths.register];

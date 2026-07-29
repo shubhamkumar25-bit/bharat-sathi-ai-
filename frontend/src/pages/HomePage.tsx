@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { appPaths } from '@/constants/paths';
-import { ArrowRight, Bot, FileText, ShieldCheck, Sparkles, Mic, GraduationCap } from 'lucide-react';
+import { ArrowRight, Bot, FileText, ShieldCheck, Sparkles, Mic, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const highlights = [
   {
@@ -29,13 +30,95 @@ const highlights = [
 
 
 
-const roadmap = [
-  'Day 1: Core website structure',
-  'Day 2: Gemini AI chat',
-  'Day 3: Voice assistant',
-  'Day 4: Resume builder + guidance',
-  'Day 5: Scheme finder + final demo'
+const impactImages = [
+  {
+    url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1200&h=600&fit=crop',
+    alt: 'Students learning together in classroom'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1200&h=600&fit=crop',
+    alt: 'Worker using phone for career guidance'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=1200&h=600&fit=crop',
+    alt: 'Farmer using smartphone in field'
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=1200&h=600&fit=crop',
+    alt: 'Youth from diverse backgrounds using technology'
+  }
 ];
+
+function ImpactGallery() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % impactImages.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) => (prev - 1 + impactImages.length) % impactImages.length);
+  };
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev + 1) % impactImages.length);
+  };
+
+  return (
+    <section className="relative w-full overflow-hidden rounded-3xl shadow-2xl">
+      <div className="relative aspect-[2/1] sm:aspect-[21/9]">
+        {impactImages.map((image, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              index === currentIndex ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <img
+              src={image.url}
+              alt={image.alt}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+          </div>
+        ))}
+        
+        <button
+          onClick={goToPrevious}
+          className="absolute left-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-lg transition hover:bg-white hover:scale-110 dark:bg-slate-900/90 dark:text-white"
+          aria-label="Previous image"
+        >
+          <ChevronLeft className="h-6 w-6" />
+        </button>
+        
+        <button
+          onClick={goToNext}
+          className="absolute right-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-slate-950 shadow-lg transition hover:bg-white hover:scale-110 dark:bg-slate-900/90 dark:text-white"
+          aria-label="Next image"
+        >
+          <ChevronRight className="h-6 w-6" />
+        </button>
+
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+          {impactImages.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`h-2 w-2 rounded-full transition-all ${
+                index === currentIndex ? 'w-8 bg-white' : 'bg-white/50'
+              }`}
+              aria-label={`Go to image ${index + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export function HomePage() {
   return (
@@ -44,11 +127,7 @@ export function HomePage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.18),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(99,102,241,0.16),transparent_36%)]" />
         <div className="relative grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-saffron-200 bg-saffron-50 px-4 py-2 text-sm font-medium text-saffron-700 dark:border-saffron-900/60 dark:bg-saffron-950/50 dark:text-saffron-300">
-              <Sparkles className="h-4 w-4" />
-              Opportunities for Every Indian
-            </span>
-            <h1 className="mt-5 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl dark:text-white">
+            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl dark:text-white">
               BharatSaathi AI helps people find guidance, jobs, schemes, and next steps in one place.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg dark:text-slate-300">
@@ -95,6 +174,8 @@ export function HomePage() {
         </div>
       </section>
 
+      <ImpactGallery />
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {highlights.map((item) => {
           const Icon = item.icon;
@@ -109,40 +190,6 @@ export function HomePage() {
             </article>
           );
         })}
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="glass rounded-3xl p-6">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            <GraduationCap className="h-4 w-4 text-saffron-500" />
-            Day-by-day build plan
-          </div>
-          <div className="mt-6 space-y-3">
-            {roadmap.map((item, index) => (
-              <div key={item} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white dark:bg-white dark:text-slate-950">
-                  {index + 1}
-                </span>
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-200">{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="hero-frame p-6 sm:p-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-saffron-600 dark:text-saffron-400">Submission focus</p>
-          <h2 className="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">What the judges should see</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            The current structure shows the product story clearly: discover opportunities, ask questions, generate a resume, and search schemes.
-          </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {['Problem clarity', 'Simple Hindi UX', 'Mobile-first design', 'Future AI integrations'].map((item) => (
-              <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-                {item}
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
     </div>
   );
