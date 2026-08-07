@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { generateTaskOutput } from "@/services/backend";
-import { ShieldCheck, FileSearch, MapPin, Users, Search, Bookmark, BookmarkCheck, Filter, X, Loader2 } from 'lucide-react';
+import { ShieldCheck, FileSearch, MapPin, Users, Search, Bookmark, BookmarkCheck, Filter, X, Loader2, Sparkles } from 'lucide-react';
 import { deleteSchemeBookmark, loadBookmarks, loadSchemes, saveSchemeBookmark } from '@/services/backend';
+import { EligibilityFlow } from '@/components/EligibilityFlow';
+import { SchemeResults } from '@/components/SchemeResults';
+import { matchSchemes } from '@/utils/schemeMatcher';
+import { EligibilityProfile, SchemeMatch } from '@/types/eligibility';
 
 const categoryOptions = ['all', 'Education', 'Agriculture', 'Employment', 'Social Welfare', 'Health', 'Housing', 'Women & Child'];
-const occupationOptions = ['all', 'student', 'farmer', 'worker', 'entrepreneur', 'senior-citizen', 'women', 'disabled'];
+const occupationOptions = ['all', 'student', 'teenager_student', 'adult', 'senior_citizen', 'farmer', 'unemployed', 'employed', 'self_employed', 'women', 'other'];
+
+// Generate age options from 3 to 100+
+const ageOptions = Array.from({ length: 98 }, (_, i) => i + 3).map(age => ({ value: age.toString(), label: age.toString() }));
+ageOptions.push({ value: '100+', label: '100+' });
 
 type Scheme = {
   id: string;
@@ -36,6 +44,11 @@ export function GovernmentSchemesPage() {
   const [aiResult, setAiResult] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
+  
+  // Smart eligibility flow state
+  const [useSmartFlow, setUseSmartFlow] = useState(false);
+  const [eligibilityProfile, setEligibilityProfile] = useState<EligibilityProfile | null>(null);
+  const [matchedSchemes, setMatchedSchemes] = useState<SchemeMatch[]>([]);
 
   const states = [
     "All India",
@@ -181,6 +194,40 @@ Detect the language of the search input and respond in the exact same language.
     await refreshBookmarks();
   }
 
+  const handleEligibilityComplete = (profile: EligibilityProfile) => {
+    setEligibilityProfile(profile);
+    const matches = matchSchemes(profile);
+    setMatchedSchemes(matches);
+  };
+
+  const handleStartOver = () => {
+    setEligibilityProfile(null);
+    setMatchedSchemes([]);
+    setUseSmartFlow(false);
+  };
+
+  const handleToggleBookmark = (scheme: any) => {
+    toggleBookmark(scheme);
+  };
+
+  // Auto-update occupation based on age
+  const handleAgeChange = (selectedAge: string) => {
+    setAge(selectedAge);
+    
+    const ageNum = parseInt(selectedAge);
+    if (!isNaN(ageNum)) {
+      if (ageNum >= 3 && ageNum <= 18) {
+        setOccupation('teenager_student');
+      } else if (ageNum >= 19 && ageNum <= 59) {
+        setOccupation('adult');
+      } else if (ageNum >= 60) {
+        setOccupation('senior_citizen');
+      }
+    } else if (selectedAge === '100+') {
+      setOccupation('senior_citizen');
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl space-y-8 py-8 px-4 sm:px-6">
       <section className="hero-frame p-6 sm:p-8">
@@ -192,30 +239,72 @@ Detect the language of the search input and respond in the exact same language.
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
           Search, filter, and bookmark the schemes that match the user profile. Saved items are synced to Firestore.
         </p>
+        
+        {/* Toggle between Smart Flow and Traditional Search */}
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <button
+            onClick={() => setUseSmartFlow(!useSmartFlow)}
+            className={`focus-ring inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition ${
+              useSmartFlow
+                ? 'bg-saffron-500 text-white hover:bg-saffron-600'
+                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900'
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            {useSmartFlow ? 'Smart Eligibility Check' : 'Try Smart Eligibility Check'}
+          </button>
+          {!useSmartFlow && (
+            <span className="text-sm text-slate-500 dark:text-slate-400">
+              AI-powered step-by-step eligibility checker
+            </span>
+          )}
+        </div>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <h2 className="text-xl font-semibold text-slate-950 dark:text-white">🤖 AI Government Scheme Finder</h2>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="focus-ring inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
-          >
-            <Filter size={16} />
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </button>
-        </div>
+      {/* Smart Eligibility Flow */}
+      {useSmartFlow && (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          {!eligibilityProfile ? (
+            <EligibilityFlow onComplete={handleEligibilityComplete} />
+          ) : (
+            <SchemeResults
+              matches={matchedSchemes}
+              onStartOver={handleStartOver}
+              bookmarkedIds={bookmarkedIds}
+              onToggleBookmark={handleToggleBookmark}
+            />
+          )}
+        </section>
+      )}
+
+      {/* Traditional Search - Hidden when using smart flow */}
+      {!useSmartFlow && (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <h2 className="text-xl font-semibold text-slate-950 dark:text-white">🤖 AI Government Scheme Finder</h2>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="focus-ring inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+            >
+              <Filter size={16} />
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </button>
+          </div>
 
         {showFilters && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">Age</label>
-              <input
+              <select
                 className="focus-ring w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-white"
-                placeholder="e.g. 25"
                 value={age}
-                onChange={(e) => setAge(e.target.value)}
-              />
+                onChange={(e) => handleAgeChange(e.target.value)}
+              >
+                <option value="">Select Age</option>
+                {ageOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-200">State</label>
@@ -236,13 +325,17 @@ Detect the language of the search input and respond in the exact same language.
                 value={occupation}
                 onChange={(e) => setOccupation(e.target.value)}
               >
+                <option value="all">All</option>
                 <option value="student">Student</option>
+                <option value="teenager_student">Teenager / Student</option>
+                <option value="adult">Adult</option>
+                <option value="senior_citizen">Senior Citizen</option>
                 <option value="farmer">Farmer</option>
-                <option value="worker">Worker</option>
-                <option value="entrepreneur">Entrepreneur</option>
-                <option value="senior-citizen">Senior Citizen</option>
-                <option value="women">Women</option>
-                <option value="disabled">Disabled</option>
+                <option value="unemployed">Unemployed</option>
+                <option value="employed">Employed</option>
+                <option value="self_employed">Self Employed</option>
+                <option value="women">Woman</option>
+                <option value="other">Other</option>
               </select>
             </div>
             <div className="flex items-end">
@@ -273,6 +366,7 @@ Detect the language of the search input and respond in the exact same language.
           </div>
         )}
       </section>
+      )}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -307,61 +401,65 @@ Detect the language of the search input and respond in the exact same language.
         </div>
       </section>
 
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-          {error}
-        </div>
-      ) : null}
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500 dark:text-slate-300">
-          <Loader2 className="animate-spin text-saffron-500" size={40} />
-          <p className="font-medium animate-pulse">Loading schemes...</p>
-        </div>
-      ) : schemes.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
-          No schemes found matching your filters. Try adjusting your search criteria.
-        </div>
-      ) : (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {schemes.map((scheme) => (
-            <article key={scheme.id} className="hero-frame p-6">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-saffron-500/10 text-saffron-600 dark:text-saffron-400">
-                  <FileSearch className="h-6 w-6" />
-                </div>
-                <button type="button" onClick={() => void toggleBookmark(scheme)} className="focus-ring inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold dark:border-slate-800 dark:bg-slate-950">
-                  {bookmarkedIds.has(scheme.id) ? <BookmarkCheck className="h-4 w-4 text-saffron-500" /> : <Bookmark className="h-4 w-4 text-saffron-500" />}
-                  {bookmarkedIds.has(scheme.id) ? 'Bookmarked' : 'Bookmark'}
-                </button>
-              </div>
-              <h2 className="mt-4 text-lg font-semibold text-slate-950 dark:text-white">{scheme.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{scheme.summary}</p>
-              {scheme.eligibility ? <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">Eligibility: {scheme.eligibility}</p> : null}
-              {scheme.documents?.length ? <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Documents: {scheme.documents.join(', ')}</p> : null}
-            </article>
-          ))}
-        </section>
-      )}
-
-      <section className="glass rounded-3xl p-6">
-        <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-          <Users className="h-4 w-4 text-saffron-500" />
-          Saved Bookmarks
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {bookmarks.length ? bookmarks.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-              <div className="font-semibold text-slate-950 dark:text-white">{item.title}</div>
-              <div className="mt-1 text-slate-500 dark:text-slate-400">{item.category}</div>
+      {!useSmartFlow && (
+        <>
+          {error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+              {error}
             </div>
-          )) : (
-            <div className="col-span-full rounded-2xl border border-slate-200 bg-white px-4 py-8 text-center text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
-              No bookmarked schemes yet.
+          ) : null}
+
+          {loading ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500 dark:text-slate-300">
+              <Loader2 className="animate-spin text-saffron-500" size={40} />
+              <p className="font-medium animate-pulse">Loading schemes...</p>
             </div>
+          ) : schemes.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+              No schemes found matching your filters. Try adjusting your search criteria.
+            </div>
+          ) : (
+            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {schemes.map((scheme) => (
+                <article key={scheme.id} className="hero-frame p-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-saffron-500/10 text-saffron-600 dark:text-saffron-400">
+                      <FileSearch className="h-6 w-6" />
+                    </div>
+                    <button type="button" onClick={() => void toggleBookmark(scheme)} className="focus-ring inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold dark:border-slate-800 dark:bg-slate-950">
+                      {bookmarkedIds.has(scheme.id) ? <BookmarkCheck className="h-4 w-4 text-saffron-500" /> : <Bookmark className="h-4 w-4 text-saffron-500" />}
+                      {bookmarkedIds.has(scheme.id) ? 'Bookmarked' : 'Bookmark'}
+                    </button>
+                  </div>
+                  <h2 className="mt-4 text-lg font-semibold text-slate-950 dark:text-white">{scheme.title}</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{scheme.summary}</p>
+                  {scheme.eligibility ? <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">Eligibility: {scheme.eligibility}</p> : null}
+                  {scheme.documents?.length ? <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Documents: {scheme.documents.join(', ')}</p> : null}
+                </article>
+              ))}
+            </section>
           )}
-        </div>
-      </section>
+
+          <section className="glass rounded-3xl p-6">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              <Users className="h-4 w-4 text-saffron-500" />
+              Saved Bookmarks
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {bookmarks.length ? bookmarks.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                  <div className="font-semibold text-slate-950 dark:text-white">{item.title}</div>
+                  <div className="mt-1 text-slate-500 dark:text-slate-400">{item.category}</div>
+                </div>
+              )) : (
+                <div className="col-span-full rounded-2xl border border-slate-200 bg-white px-4 py-8 text-center text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                  No bookmarked schemes yet.
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

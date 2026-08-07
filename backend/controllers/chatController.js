@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { z } from "zod";
 import { generateGeminiResponse } from "../services/geminiService.js";
+import { BHARATSAATHI_SYSTEM_PROMPT, OUT_OF_SCOPE_RESPONSES } from "../config/systemPrompt.js";
 
 const chatMessageSchema = z.object({
   message: z.string().min(1),
@@ -16,22 +17,31 @@ const chatMessageSchema = z.object({
   ).default([]),
 });
 
-export const MULTILINGUAL_CHAT_SYSTEM_INSTRUCTION = `You are BharatSaathi AI, an intelligent, helpful, and empathetic AI assistant for Indian users.
+// Language detection helper function
+function detectLanguage(text) {
+  const hindiPattern = /[\u0900-\u097F]/; // Devanagari script
+  const hinglishPattern = /\b(kya|kaise|hai|hoga|karein|kar|sakta|hai|kripya|please|thanks|dhanyawad)\b/i;
+  
+  if (hindiPattern.test(text)) {
+    return 'hindi';
+  } else if (hinglishPattern.test(text)) {
+    return 'hinglish';
+  }
+  return 'english';
+}
 
-LANGUAGE RULES:
-1. Automatically detect the user's language (English, Hindi, Hinglish, Tamil, Telugu, Bengali, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Urdu, Assamese, Odia, etc.).
-2. Always respond in the EXACT SAME LANGUAGE and style as the user.
-3. If the user writes in Hinglish (Roman Hindi), reply in natural, friendly Hinglish.
-4. Never force the user into English if they asked in Hindi/Hinglish or another language.
-
-TOPIC CAPABILITIES:
-- Career Guidance & Job Preparation: "Frontend developer kaise bane", "Job lagne ke tips", interview questions, skills roadmap.
-- Exam & Competitive Preparation: "Delhi Police preparation", SSC, UPSC, Bank exams, syllabus, strategy.
-- Resume & ATS Optimization: "Resume kaise banau", ATS formatting tips, summary writing.
-- Government Schemes & Scholarships: Central & State government schemes, scholarships, eligibility, document checklists.
-- Programming & Education: "React samjhao", HTML/CSS/JS, Python, coding concepts with code snippets.
-- Agriculture & Farming: PM-Kisan, soil health, crop guidance, weather/crop schemes.
-- General Assistance: Clear, step-by-step, actionable, and encouraging answers.`;
+// Out of scope detection
+function isOutOfScope(message) {
+  const outOfScopeTopics = [
+    'politics', 'religion', 'entertainment', 'movies', 'sports', 
+    'news', 'coding', 'programming', 'mathematics', 'medical advice',
+    'legal advice', 'finance', 'stock market', 'cryptocurrency',
+    'personal opinions', 'weather', 'jokes', 'games'
+  ];
+  
+  const lowerMessage = message.toLowerCase();
+  return outOfScopeTopics.some(topic => lowerMessage.includes(topic));
+}
 
 export async function sendChatMessage(req, res, next) {
   try {
@@ -39,10 +49,39 @@ export async function sendChatMessage(req, res, next) {
 
     const conversationId = payload.conversationId || crypto.randomUUID();
 
+    // Detect language
+    const detectedLanguage = detectLanguage(payload.message);
+
+    // Check if message is out of scope
+    if (isOutOfScope(payload.message)) {
+      const outOfScopeResponse = OUT_OF_SCOPE_RESPONSES[detectedLanguage] || OUT_OF_SCOPE_RESPONSES.english;
+      
+      const userMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: payload.message,
+        createdAt: new Date().toISOString(),
+      };
+
+      const assistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: outOfScopeResponse,
+        createdAt: new Date().toISOString(),
+      };
+
+      return res.json({
+        conversationId,
+        answer: outOfScopeResponse,
+        messages: [userMessage, assistantMessage],
+        detectedLanguage,
+      });
+    }
+
     const answerText = await generateGeminiResponse({
       prompt: payload.message,
       history: payload.history.slice(-12),
-      systemInstruction: MULTILINGUAL_CHAT_SYSTEM_INSTRUCTION,
+      systemInstruction: BHARATSAATHI_SYSTEM_PROMPT,
     });
 
     const userMessage = {
@@ -63,6 +102,7 @@ export async function sendChatMessage(req, res, next) {
       conversationId,
       answer: answerText || "",
       messages: [userMessage, assistantMessage],
+      detectedLanguage,
     });
   } catch (error) {
     next(error);
