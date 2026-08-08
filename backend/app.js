@@ -7,6 +7,9 @@ import { geminiRoutes } from './routes/geminiRoutes.js';
 import { resumeRoutes } from './routes/resumeRoutes.js';
 import { schemesRoutes } from './routes/schemesRoutes.js';
 import { healthRoutes } from './routes/healthRoutes.js';
+import dataSyncRoutes from './routes/dataSyncRoutes.js';
+import schemeMatchingRoutes from './routes/schemeMatchingRoutes.js';
+import locationRoutes from './routes/locationRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorMiddleware.js';
 
 dotenv.config();
@@ -23,6 +26,9 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/gemini', geminiRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/schemes', schemesRoutes);
+app.use('/api/admin/data-gov', dataSyncRoutes);
+app.use('/api/schemes-db', schemeMatchingRoutes);
+app.use('/api/location', locationRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

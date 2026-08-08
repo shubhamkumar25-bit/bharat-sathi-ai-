@@ -1,13 +1,174 @@
 import { EligibilityProfile, EligibilityQuestion, MaritalStatus, CasteCategory, MinorityStatus, DisabilityStatus, AreaType, Occupation, IncomeRange } from '../types/eligibility';
+import { getStates, getDistricts } from '../services/locationApi';
 
-const states = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa',
-  'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala',
-  'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland',
-  'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu & Kashmir',
-  'Chandigarh', 'Puducherry', 'Lakshadweep', 'Andaman & Nicobar'
-];
+// Dynamic state and district options will be loaded from API
+let cachedStates: Array<{ value: string; label: string }> = [];
+let cachedDistricts: Record<string, Array<{ value: string; label: string }>> = {};
+
+/**
+ * Load states from API
+ */
+export async function loadStates(): Promise<Array<{ value: string; label: string }>> {
+  if (cachedStates.length > 0) {
+    return cachedStates;
+  }
+  
+  try {
+    const result = await getStates();
+    if (result.success) {
+      cachedStates = result.data.map(state => ({
+        value: state.name,
+        label: state.name,
+      }));
+    }
+  } catch (error) {
+    console.error('Failed to load states:', error);
+  }
+  
+  return cachedStates;
+}
+
+/**
+ * Load districts for a specific state from API
+ */
+export async function loadDistricts(stateName: string): Promise<Array<{ value: string; label: string }>> {
+  if (cachedDistricts[stateName]) {
+    return cachedDistricts[stateName];
+  }
+  
+  // Return hardcoded districts immediately for better UX
+  const districts = getHardcodedDistricts(stateName);
+  cachedDistricts[stateName] = districts;
+  
+  // Try to load from API in background (non-blocking)
+  getDistricts().then(result => {
+    if (result.success) {
+      const stateDistricts = result.data.filter(d => d.stateCode === stateName);
+      if (stateDistricts.length > 0) {
+        cachedDistricts[stateName] = stateDistricts.map(district => ({
+          value: district.name,
+          label: district.name,
+        }));
+      }
+    }
+  }).catch(error => {
+    console.error('Failed to load districts from API:', error);
+  });
+  
+  return districts;
+}
+
+/**
+ * Get hardcoded districts for a state (fallback)
+ */
+function getHardcodedDistricts(stateName: string): Array<{ value: string; label: string }> {
+  const districtsByState: Record<string, string[]> = {
+    'Maharashtra': [
+      'Mumbai', 'Pune', 'Nagpur', 'Thane', 'Nashik', 'Aurangabad', 'Solapur', 'Kolhapur',
+      'Amravati', 'Akola', 'Jalgaon', 'Latur', 'Nanded', 'Sangli', 'Satara', 'Bhiwandi',
+      'Dhule', 'Ahmednagar', 'Chandrapur', 'Yavatmal', 'Ratnagiri', 'Wardha', 'Gondia',
+      'Bhandara', 'Hingoli', 'Jalna', 'Parbhani', 'Beed', 'Osmanabad', 'Nandurbar',
+      'Washim', 'Buldhana', 'Sindhudurg', 'Raigad', 'Ratnagiri', 'Palghar'
+    ],
+    'Delhi': [
+      'New Delhi', 'North Delhi', 'South Delhi', 'East Delhi', 'West Delhi', 'Central Delhi',
+      'North East Delhi', 'North West Delhi', 'South West Delhi'
+    ],
+    'Karnataka': [
+      'Bangalore', 'Mysore', 'Hubli', 'Dharwad', 'Belgaum', 'Kalaburagi', 'Mangalore',
+      'Vijayapura', 'Shimoga', 'Dakshina Kannada', 'Udupi', 'Chikmagalur', 'Hassan'
+    ],
+    'Tamil Nadu': [
+      'Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Erode', 'Tirunelveli',
+      'Vellore', 'Thoothukudi', 'Dindigul', 'Thanjavur', 'Nagercoil', 'Kanchipuram'
+    ],
+    'Uttar Pradesh': [
+      'Lucknow', 'Kanpur', 'Agra', 'Varanasi', 'Meerut', 'Allahabad', 'Ghaziabad', 'Noida',
+      'Bareilly', 'Aligarh', 'Moradabad', 'Saharanpur', 'Gorakhpur', 'Firozabad', 'Jhansi'
+    ],
+    'West Bengal': [
+      'Kolkata', 'Howrah', 'Durgapur', 'Asansol', 'Siliguri', 'Bardhaman', 'Malda', 'Midnapore',
+      'Krishnanagar', 'Baharampur', 'Berhampore', 'Kharagpur', 'Shantipur', 'Dinajpur'
+    ],
+    'Gujarat': [
+      'Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar', 'Junagadh', 'Gandhinagar',
+      'Anand', 'Nadiad', 'Bharuch', 'Porbandar', 'Surendranagar', 'Bhuj', 'Valsad'
+    ],
+    'Rajasthan': [
+      'Jaipur', 'Jodhpur', 'Udaipur', 'Kota', 'Ajmer', 'Bikaner', 'Alwar', 'Bhilwara',
+      'Sikar', 'Pali', 'Nagaur', 'Barmer', 'Jalore', 'Sriganganagar', 'Churu'
+    ],
+    'Telangana': [
+      'Hyderabad', 'Warangal', 'Nizamabad', 'Karimnagar', 'Ramagundam', 'Khammam',
+      'Mahbubnagar', 'Nalgonda', 'Adilabad', 'Miryalaguda', 'Nizamabad'
+    ],
+    'Kerala': [
+      'Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Kollam', 'Thrissur', 'Palakkad',
+      'Alappuzha', 'Malappuram', 'Kannur', 'Kottayam', 'Idukki', 'Ernakulam'
+    ]
+  };
+  
+  return (districtsByState[stateName] || []).map(d => ({ value: d, label: d }));
+}
+
+/**
+ * Get state options (with fallback to hardcoded list if API fails)
+ */
+export function getStateOptions(): Array<{ value: string; label: string }> {
+  if (cachedStates.length > 0) {
+    return cachedStates;
+  }
+  
+  // Fallback to hardcoded list
+  return [
+    { value: 'Andhra Pradesh', label: 'Andhra Pradesh' },
+    { value: 'Arunachal Pradesh', label: 'Arunachal Pradesh' },
+    { value: 'Assam', label: 'Assam' },
+    { value: 'Bihar', label: 'Bihar' },
+    { value: 'Chhattisgarh', label: 'Chhattisgarh' },
+    { value: 'Goa', label: 'Goa' },
+    { value: 'Gujarat', label: 'Gujarat' },
+    { value: 'Haryana', label: 'Haryana' },
+    { value: 'Himachal Pradesh', label: 'Himachal Pradesh' },
+    { value: 'Jharkhand', label: 'Jharkhand' },
+    { value: 'Karnataka', label: 'Karnataka' },
+    { value: 'Kerala', label: 'Kerala' },
+    { value: 'Madhya Pradesh', label: 'Madhya Pradesh' },
+    { value: 'Maharashtra', label: 'Maharashtra' },
+    { value: 'Manipur', label: 'Manipur' },
+    { value: 'Meghalaya', label: 'Meghalaya' },
+    { value: 'Mizoram', label: 'Mizoram' },
+    { value: 'Nagaland', label: 'Nagaland' },
+    { value: 'Odisha', label: 'Odisha' },
+    { value: 'Punjab', label: 'Punjab' },
+    { value: 'Rajasthan', label: 'Rajasthan' },
+    { value: 'Sikkim', label: 'Sikkim' },
+    { value: 'Tamil Nadu', label: 'Tamil Nadu' },
+    { value: 'Telangana', label: 'Telangana' },
+    { value: 'Tripura', label: 'Tripura' },
+    { value: 'Uttar Pradesh', label: 'Uttar Pradesh' },
+    { value: 'Uttarakhand', label: 'Uttarakhand' },
+    { value: 'West Bengal', label: 'West Bengal' },
+    { value: 'Delhi', label: 'Delhi' },
+    { value: 'Jammu & Kashmir', label: 'Jammu & Kashmir' },
+    { value: 'Chandigarh', label: 'Chandigarh' },
+    { value: 'Puducherry', label: 'Puducherry' },
+    { value: 'Lakshadweep', label: 'Lakshadweep' },
+    { value: 'Andaman & Nicobar', label: 'Andaman & Nicobar' }
+  ];
+}
+
+/**
+ * Get district options for a state (with fallback)
+ */
+export function getDistrictOptions(stateName: string): Array<{ value: string; label: string }> {
+  if (cachedDistricts[stateName]) {
+    return cachedDistricts[stateName];
+  }
+  
+  // Fallback - return empty array, will be populated by API call
+  return [];
+}
 
 export function getOnboardingQuestions(): EligibilityQuestion[] {
   return [
@@ -67,7 +228,7 @@ export function getOnboardingQuestions(): EligibilityQuestion[] {
       totalSteps: 7,
       question: "Which state do you live in?",
       type: 'select',
-      options: states.map(state => ({ value: state, label: state })),
+      options: getStateOptions(),
       skipCondition: (profile) => false
     },
     {
@@ -75,8 +236,8 @@ export function getOnboardingQuestions(): EligibilityQuestion[] {
       step: 2,
       totalSteps: 7,
       question: "Which district do you live in?",
-      type: 'input',
-      placeholder: 'Enter your district',
+      type: 'select',
+      options: [], // Will be populated dynamically based on selected state
       skipCondition: (profile) => !profile.state
     },
     {

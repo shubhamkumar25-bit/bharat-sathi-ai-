@@ -17,6 +17,10 @@ import { FarmerSupportPage } from "./pages/FarmerSupportPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AdminDashboard } from "./pages/AdminDashboard";
+import { AdminDataSourcesPage } from "./pages/AdminDataSourcesPage";
+import { AdminSyncPage } from "./pages/AdminSyncPage";
+import { SchemeSearchPage } from "./pages/SchemeSearchPage";
+import { SchemeDetailPage } from "./pages/SchemeDetailPage";
 import AboutUsPage from "./pages/AboutUsPage";
 import ContactUsPage from "./pages/ContactUsPage";
 import CareerPage from "./pages/CareerPage";
@@ -120,6 +124,42 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/data-sources"
+          element={
+            <ProtectedRoute>
+              <AdminDataSourcesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/sync"
+          element={
+            <ProtectedRoute>
+              <AdminSyncPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/schemes/search"
+          element={
+            <ProtectedRoute>
+              <SchemeSearchPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/schemes/:schemeId"
+          element={
+            <ProtectedRoute>
+              <SchemeDetailPage />
             </ProtectedRoute>
           }
         />

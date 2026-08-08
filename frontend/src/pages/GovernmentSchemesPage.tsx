@@ -6,8 +6,8 @@ import { EligibilityFlow } from '@/components/EligibilityFlow';
 import { SchemeResults } from '@/components/SchemeResults';
 import { SchemeOnboarding } from '@/components/SchemeOnboarding';
 import { SchemeResultsCategorized } from '@/components/SchemeResultsCategorized';
-import { matchSchemes } from '@/utils/schemeMatcher';
 import { matchSchemesEnhanced } from '@/utils/enhancedSchemeMatcher';
+import { matchSchemes as matchSchemesApi } from '@/services/schemesApi';
 import { EligibilityProfile, SchemeMatch } from '@/types/eligibility';
 
 const categoryOptions = ['all', 'Education', 'Agriculture', 'Employment', 'Social Welfare', 'Health', 'Housing', 'Women & Child'];
@@ -198,10 +198,17 @@ Detect the language of the search input and respond in the exact same language.
     await refreshBookmarks();
   }
 
-  const handleEligibilityComplete = (profile: EligibilityProfile) => {
+  const handleEligibilityComplete = async (profile: EligibilityProfile) => {
     setEligibilityProfile(profile);
-    const matches = matchSchemes(profile);
-    setMatchedSchemes(matches);
+    // Use database-driven matching via API
+    const result = await matchSchemesApi(profile);
+    if (result.success) {
+      setMatchedSchemes(result.matches);
+    } else {
+      // Fallback to enhanced matcher if API fails
+      const matches = matchSchemesEnhanced(profile);
+      setMatchedSchemes(matches);
+    }
   };
 
   const handleStartOver = () => {
@@ -211,10 +218,17 @@ Detect the language of the search input and respond in the exact same language.
     setUseNewOnboarding(true);
   };
 
-  const handleNewOnboardingComplete = (profile: EligibilityProfile) => {
+  const handleNewOnboardingComplete = async (profile: EligibilityProfile) => {
     setEligibilityProfile(profile);
-    const matches = matchSchemesEnhanced(profile);
-    setMatchedSchemes(matches);
+    // Use database-driven matching via API
+    const result = await matchSchemesApi(profile);
+    if (result.success) {
+      setMatchedSchemes(result.matches);
+    } else {
+      // Fallback to enhanced matcher if API fails
+      const matches = matchSchemesEnhanced(profile);
+      setMatchedSchemes(matches);
+    }
   };
 
   const handleSkipOnboarding = () => {

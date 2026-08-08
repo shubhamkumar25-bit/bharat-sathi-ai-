@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { EligibilityProfile, EligibilityQuestion } from '../types/eligibility';
-import { getOnboardingQuestions, getNextOnboardingQuestion, getOnboardingProgress } from '../utils/onboardingFlow';
+import { getOnboardingQuestions, getNextOnboardingQuestion, getOnboardingProgress, loadStates, loadDistricts } from '../utils/onboardingFlow';
 
 interface SchemeOnboardingProps {
   onComplete: (profile: EligibilityProfile) => void;
@@ -15,11 +15,21 @@ export function SchemeOnboarding({ onComplete, onSkip }: SchemeOnboardingProps) 
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [history, setHistory] = useState<{ profile: EligibilityProfile; index: number }[]>([]);
+  const [districts, setDistricts] = useState<Array<{ value: string; label: string }>>([]);
 
   useEffect(() => {
+    // Load states from API on component mount
+    loadStates();
     const nextQuestion = getNextOnboardingQuestion(profile, 0);
     setCurrentQuestion(nextQuestion);
   }, []);
+
+  // Load districts when state is selected
+  useEffect(() => {
+    if (profile.state) {
+      loadDistricts(profile.state).then(setDistricts);
+    }
+  }, [profile.state]);
 
   const handleAnswer = (value: string | boolean) => {
     const updatedProfile = { ...profile };
@@ -291,8 +301,8 @@ export function SchemeOnboarding({ onComplete, onSkip }: SchemeOnboardingProps) 
           </div>
         )}
 
-        {/* Input Type: Select */}
-        {currentQuestion.type === 'select' && currentQuestion.options && (
+        {/* Input Type: Select (for state/district) */}
+        {currentQuestion.type === 'select' && (
           <div>
             <select
               className="focus-ring w-full p-4 sm:p-5 rounded-2xl border-2 border-slate-200 bg-slate-50 text-lg text-slate-950 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
@@ -300,12 +310,17 @@ export function SchemeOnboarding({ onComplete, onSkip }: SchemeOnboardingProps) 
               autoFocus
             >
               <option value="">Select an option</option>
-              {currentQuestion.options.map((option) => (
+              {(currentQuestion.id === 'district' ? districts : currentQuestion.options)?.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
+            {currentQuestion.id === 'district' && districts.length === 0 && profile.state && (
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Loading districts for {profile.state}...
+              </p>
+            )}
           </div>
         )}
       </div>
