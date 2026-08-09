@@ -26,6 +26,15 @@ import ContactUsPage from "./pages/ContactUsPage";
 import CareerPage from "./pages/CareerPage";
 import BlogPage from "./pages/BlogPage";
 import TeamPage from "./pages/TeamPage";
+import { AdminUsers } from "./pages/AdminUsers";
+import { AdminUserDetail } from "./pages/AdminUserDetail";
+import { AdminFeatureAnalytics } from "./pages/AdminFeatureAnalytics";
+import { AdminAIAnalytics } from "./pages/AdminAIAnalytics";
+import { AdminSchemeAnalytics } from "./pages/AdminSchemeAnalytics";
+import { AdminRetentionAnalytics } from "./pages/AdminRetentionAnalytics";
+import { AdminAuditLog } from "./pages/AdminAuditLog";
+import { AdminSettings } from "./pages/AdminSettings";
+import { AdminSidebar } from "./components/AdminSidebar";
 
 export default function App() {
   return (
@@ -123,7 +132,138 @@ export default function App() {
           path="/admin"
           element={
             <ProtectedRoute>
-              <AdminDashboard />
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminDashboard />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminUsers />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/users/:userId"
+          element={
+            <ProtectedRoute>
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminUserDetail />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/analytics"
+          element={
+            <ProtectedRoute>
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminDashboard />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/analytics/feature-usage"
+          element={
+            <ProtectedRoute>
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminFeatureAnalytics />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/analytics/ai"
+          element={
+            <ProtectedRoute>
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminAIAnalytics />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/analytics/government-schemes"
+          element={
+            <ProtectedRoute>
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminSchemeAnalytics />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/analytics/retention"
+          element={
+            <ProtectedRoute>
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminRetentionAnalytics />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/audit-log"
+          element={
+            <ProtectedRoute>
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminAuditLog />
+                </div>
+              </div>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute>
+              <div className="flex">
+                <AdminSidebar />
+                <div className="flex-1 lg:ml-64 p-6">
+                  <AdminSettings />
+                </div>
+              </div>
             </ProtectedRoute>
           }
         />

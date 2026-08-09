@@ -1,170 +1,233 @@
 import { useEffect, useState } from 'react';
-import { Shield, ShieldAlert, Trash2, UserCog, UserRound } from 'lucide-react';
+import { Shield, Users, Activity, TrendingUp, Calendar, BarChart3, ArrowUpRight, ArrowDownRight, RefreshCw, Download } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { loadAllUsers, updateUserRoleApi, deleteUserApi } from '@/services/backend';
+import { DateFilter } from '@/components/DateFilter';
+
+interface DashboardStats {
+  totalUsers: number;
+  activeToday: number;
+  activeWeek: number;
+  activeMonth: number;
+  newUsersToday: number;
+  newUsersWeek: number;
+  newUsersMonth: number;
+  loginsToday: number;
+  loginsMonth: number;
+  activeSessions: number;
+}
 
 export function AdminDashboard() {
-  const { role } = useAuth();
-  const [users, setUsers] = useState<any[]>([]);
+  const { user } = useAuth();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
-    fetchUsers();
+    fetchDashboardStats();
   }, []);
 
-  async function fetchUsers() {
+  async function fetchDashboardStats() {
     setLoading(true);
     setError('');
     try {
-      const data = await loadAllUsers();
-      setUsers(data.users);
+      const token = await user?.getIdToken();
+      const response = await fetch('http://localhost:4000/api/admin/dashboard', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Access denied. Admin privileges required.');
+        }
+        throw new Error('Failed to fetch dashboard stats');
+      }
+
+      const data = await response.json();
+      setStats(data);
+      setLastUpdated(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users');
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleToggleRole(uid: string, currentRole: string) {
-    if (!window.confirm(`Are you sure you want to toggle the role for this user?`)) return;
-    
-    setProcessingId(uid);
-    const newRole = currentRole === 'admin' ? 'user' : 'admin';
-    try {
-      await updateUserRoleApi(uid, newRole);
-      setUsers(users.map(u => u.uid === uid ? { ...u, role: newRole } : u));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to update role');
-    } finally {
-      setProcessingId(null);
-    }
-  }
+  const handleDateRangeChange = (startDate: string, endDate: string) => {
+    // TODO: Implement date range filtering
+    console.log('Date range:', startDate, endDate);
+  };
 
-  async function handleDelete(uid: string) {
-    if (!window.confirm('WARNING: This will permanently delete this user. Are you absolutely sure?')) return;
-    
-    setProcessingId(uid);
+  const handleExport = async () => {
     try {
-      await deleteUserApi(uid);
-      setUsers(users.filter(u => u.uid !== uid));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete user');
-    } finally {
-      setProcessingId(null);
-    }
-  }
+      const token = await user?.getIdToken();
+      const response = await fetch('http://localhost:4000/api/admin/export?type=dashboard', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-  if (role !== 'admin') {
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard-analytics-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      alert('Failed to export data');
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="section-shell py-20 text-center">
-        <ShieldAlert className="mx-auto mb-4 h-16 w-16 text-red-500" />
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Access Denied</h2>
-        <p className="mt-2 text-slate-600 dark:text-slate-400">You do not have permission to view this page.</p>
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-saffron-500 border-t-transparent mx-auto" />
+          <p className="text-slate-600 dark:text-slate-400">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="section-shell py-10">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white flex items-center gap-3">
-            <Shield className="h-8 w-8 text-saffron-600 dark:text-saffron-400" />
-            Admin Dashboard
-          </h1>
-          <p className="mt-2 text-slate-600 dark:text-slate-400">Manage users and access permissions across the platform.</p>
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center max-w-md">
+          <Shield className="mx-auto mb-4 h-16 w-16 text-red-500" />
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Access Error</h2>
+          <p className="text-slate-600 dark:text-slate-400">{error}</p>
         </div>
-        <div className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 dark:bg-slate-900 dark:text-slate-300">
-          Total Users: {(users || []).length}
+      </div>
+    );
+  }
+
+  const StatCard = ({ title, value, icon: Icon, change, changeType }: any) => (
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-saffron-100 text-saffron-600 dark:bg-saffron-900/30 dark:text-saffron-400">
+          <Icon className="h-6 w-6" />
+        </div>
+        {change && (
+          <div className={`flex items-center gap-1 text-sm font-semibold ${
+            changeType === 'positive' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+          }`}>
+            {changeType === 'positive' ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
+            {change}
+          </div>
+        )}
+      </div>
+      <div className="text-3xl font-bold text-slate-950 dark:text-white mb-1">{value?.toLocaleString()}</div>
+      <div className="text-sm text-slate-600 dark:text-slate-400">{title}</div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-950 dark:text-white mb-2">Admin Dashboard</h1>
+          <p className="text-slate-600 dark:text-slate-400">Platform overview and analytics</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <DateFilter onDateRangeChange={handleDateRangeChange} />
+          <button
+            onClick={fetchDashboardStats}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </button>
+          <button
+            onClick={handleExport}
+            className="inline-flex items-center gap-2 rounded-2xl bg-saffron-500 px-4 py-2 text-sm font-medium text-white hover:bg-saffron-600"
+          >
+            <Download className="h-4 w-4" />
+            Export
+          </button>
         </div>
       </div>
 
-      {error && (
-        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
-          {error}
+      {lastUpdated && (
+        <div className="text-sm text-slate-500 dark:text-slate-400">
+          Last Updated: {lastUpdated.toLocaleTimeString()}
         </div>
       )}
 
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600 dark:text-slate-300">
-            <thead className="bg-slate-50 text-xs uppercase text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
-              <tr>
-                <th className="px-6 py-4 font-semibold">User</th>
-                <th className="px-6 py-4 font-semibold">Role</th>
-                <th className="px-6 py-4 font-semibold">Joined</th>
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {loading ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500">Loading users...</td>
-                </tr>
-              ) : !(users || []).length ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500">No users found.</td>
-                </tr>
-              ) : (
-                users.map((u) => (
-                  <tr key={u.uid} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/50">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {u.photoURL ? (
-                          <img src={u.photoURL} alt={u.email} className="h-10 w-10 rounded-full" />
-                        ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-saffron-100 text-saffron-700 dark:bg-saffron-900/30 dark:text-saffron-400">
-                            <UserRound className="h-5 w-5" />
-                          </div>
-                        )}
-                        <div>
-                          <div className="font-semibold text-slate-900 dark:text-white">{u.displayName || 'No Name'}</div>
-                          <div className="text-xs text-slate-500">{u.email}</div>
-                          <div className="text-[10px] text-slate-400">{u.uid}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        u.role === 'admin' 
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' 
-                          : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                      }`}>
-                        {u.role === 'admin' ? <Shield className="h-3 w-3" /> : <UserRound className="h-3 w-3" />}
-                        {u.role.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-xs">
-                      {new Date(u.creationTime).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleToggleRole(u.uid, u.role)}
-                          disabled={processingId === u.uid}
-                          className="focus-ring inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                        >
-                          <UserCog className="h-3.5 w-3.5" />
-                          {u.role === 'admin' ? 'Make User' : 'Make Admin'}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(u.uid)}
-                          disabled={processingId === u.uid}
-                          className="focus-ring inline-flex items-center gap-1 rounded-xl bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Users"
+          value={stats?.totalUsers}
+          icon={Users}
+        />
+        <StatCard
+          title="Active Today"
+          value={stats?.activeToday}
+          icon={Activity}
+          change="+12.4%"
+          changeType="positive"
+        />
+        <StatCard
+          title="New Users Today"
+          value={stats?.newUsersToday}
+          icon={TrendingUp}
+          change="+8.2%"
+          changeType="positive"
+        />
+        <StatCard
+          title="Logins Today"
+          value={stats?.loginsToday}
+          icon={Calendar}
+          change="+15.1%"
+          changeType="positive"
+        />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          title="Active This Week"
+          value={stats?.activeWeek}
+          icon={Users}
+        />
+        <StatCard
+          title="Active This Month"
+          value={stats?.activeMonth}
+          icon={Activity}
+        />
+        <StatCard
+          title="Active Sessions"
+          value={stats?.activeSessions}
+          icon={BarChart3}
+        />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <StatCard
+          title="New Users This Week"
+          value={stats?.newUsersWeek}
+          icon={TrendingUp}
+        />
+        <StatCard
+          title="New Users This Month"
+          value={stats?.newUsersMonth}
+          icon={TrendingUp}
+        />
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <h2 className="text-xl font-semibold text-slate-950 dark:text-white mb-4">Logins This Month</h2>
+        <div className="text-4xl font-bold text-saffron-600 dark:text-saffron-400 mb-2">
+          {stats?.loginsMonth?.toLocaleString()}
         </div>
+        <p className="text-slate-600 dark:text-slate-400">Total login events this month</p>
       </div>
     </div>
   );

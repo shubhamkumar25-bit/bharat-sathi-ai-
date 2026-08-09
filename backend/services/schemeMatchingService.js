@@ -45,7 +45,8 @@ class SchemeMatchingService {
         query = query.where('central_state', '==', filters.central_state);
       }
       
-      const snapshot = await query.limit(100).get();
+      // Remove limit to fetch ALL schemes
+      const snapshot = await query.get();
       const schemes = [];
       
       snapshot.forEach(doc => {
@@ -100,17 +101,17 @@ class SchemeMatchingService {
             scheme: scheme,
             matchCategory: matchResult.category,
             confidenceScore: matchResult.confidence,
+            eligibilityPercentage: matchResult.eligibilityPercentage,
             eligibilityExplanation: matchResult.explanation,
             eligibilityReason: matchResult.reason,
+            matchedCriteria: matchResult.matchedCriteria,
+            totalCriteria: matchResult.totalCriteria,
           });
         }
       }
 
-      // Sort matches by confidence score
-      matches.sort((a, b) => {
-        const confidenceOrder = { high: 3, medium: 2, low: 1 };
-        return confidenceOrder[b.confidenceScore] - confidenceOrder[a.confidenceScore];
-      });
+      // Sort matches by eligibility percentage (highest first)
+      matches.sort((a, b) => b.eligibilityPercentage - a.eligibilityPercentage);
 
       return {
         success: true,
@@ -222,8 +223,9 @@ class SchemeMatchingService {
       }
     }
 
-    // Calculate confidence score
+    // Calculate confidence score and eligibility percentage
     const confidenceRatio = totalCriteria > 0 ? matchScore / totalCriteria : 0;
+    const eligibilityPercentage = Math.round(confidenceRatio * 100);
     let confidence = 'low';
     let category = 'explore_more';
 
@@ -242,10 +244,12 @@ class SchemeMatchingService {
       isMatch,
       confidence,
       category,
+      eligibilityPercentage,
       explanation,
       reason: reasons.join(', ') || 'Profile partially matches scheme criteria',
       matchScore,
       totalCriteria,
+      matchedCriteria: matchScore,
     };
   }
 

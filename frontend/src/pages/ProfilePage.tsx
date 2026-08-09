@@ -31,6 +31,7 @@ export function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let mounted = true;
@@ -72,9 +73,43 @@ export function ProfilePage() {
 
   function updateField(field: keyof ProfileForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+  }
+
+  function validateForm(): boolean {
+    const newErrors: Record<string, string> = {};
+
+    if (!form.displayName.trim()) {
+      newErrors.displayName = 'Display name is required';
+    }
+
+    if (!form.phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Phone number is required';
+    } else if (!/^[0-9]{10}$/.test(form.phoneNumber.replace(/\s/g, ''))) {
+      newErrors.phoneNumber = 'Please enter a valid 10-digit phone number';
+    }
+
+    if (!form.location.trim()) {
+      newErrors.location = 'Location is required';
+    }
+
+    if (!user?.email) {
+      newErrors.email = 'Email is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   }
 
   async function handleSave() {
+    if (!validateForm()) {
+      setStatus('Please fill in all required fields.');
+      return;
+    }
+
     setSaving(true);
     setStatus('Saving profile...');
     try {
@@ -92,6 +127,7 @@ export function ProfilePage() {
         role,
       });
       setStatus('Profile saved and synced to Firestore.');
+      setErrors({});
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Profile save failed.');
     } finally {
@@ -123,21 +159,31 @@ export function ProfilePage() {
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {[
-              ['displayName', 'Display name'],
-              ['phoneNumber', 'Phone number'],
-              ['location', 'Location'],
-              ['linkedin', 'LinkedIn'],
-              ['github', 'GitHub'],
-              ['portfolio', 'Portfolio'],
-            ].map(([field, label]) => (
+              { field: 'displayName', label: 'Display name', required: true },
+              { field: 'phoneNumber', label: 'Phone number', required: true },
+              { field: 'location', label: 'Location', required: true },
+              { field: 'linkedin', label: 'LinkedIn', required: false },
+              { field: 'github', label: 'GitHub', required: false },
+              { field: 'portfolio', label: 'Portfolio', required: false },
+            ].map(({ field, label, required }) => (
               <label key={field} className="space-y-2 text-sm">
-                <span className="font-medium text-slate-700 dark:text-slate-200">{label}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-200">
+                  {label}
+                  {required && <span className="text-red-500 ml-1">*</span>}
+                </span>
                 <input
                   value={form[field as keyof ProfileForm]}
                   onChange={(event) => updateField(field as keyof ProfileForm, event.target.value)}
-                  className="focus-ring w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
+                  className={`focus-ring w-full rounded-2xl border px-4 py-3 text-slate-900 dark:bg-slate-950 dark:text-white ${
+                    errors[field as keyof ProfileForm]
+                      ? 'border-red-500 focus:border-red-500'
+                      : 'border-slate-200 dark:border-slate-800'
+                  }`}
                   placeholder={label}
                 />
+                {errors[field as keyof ProfileForm] && (
+                  <span className="text-xs text-red-500">{errors[field as keyof ProfileForm]}</span>
+                )}
               </label>
             ))}
             <label className="space-y-2 text-sm md:col-span-2">
@@ -187,8 +233,11 @@ export function ProfilePage() {
               <Sparkles className="h-4 w-4" />
               Why this matters
             </div>
-            <p>
+            <p className="mb-2">
               A complete profile improves chat answers, resume exports, and any future role-based experiences you enable in Firebase custom claims.
+            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              <span className="font-medium">Required fields:</span> Display name, Phone number, Location, and Email are required to use all platform features.
             </p>
           </div>
         </section>

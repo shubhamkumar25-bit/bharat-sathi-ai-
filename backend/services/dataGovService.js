@@ -191,6 +191,17 @@ class DataGovService {
       official_url: record.official_url || record.OfficialUrl || record.website,
       last_verified_date: record.last_verified_date || record.LastVerifiedDate || new Date().toISOString(),
       source: 'Data.gov.in',
+      // Beneficiary/Usage Statistics (from government data)
+      beneficiary_count: record.beneficiary_count || record.total_beneficiaries || record.beneficiaries || null,
+      applications_received: record.applications_received || record.applications || null,
+      applications_approved: record.applications_approved || record.approved_applications || record.sanctioned_applications || null,
+      amount_disbursed: record.amount_disbursed || record.funds_disbursed || record.disbursement_amount || null,
+      beneficiary_data_source: record.beneficiary_data_source || record.data_source || null,
+      beneficiary_data_period: record.beneficiary_data_period || record.data_period || record.fiscal_year || null,
+      beneficiary_data_last_updated: record.beneficiary_data_last_updated || record.data_last_updated || null,
+      // Bharat Sathi User Ratings
+      bharat_sathi_rating: record.bharat_sathi_rating || record.user_rating || null,
+      bharat_sathi_rating_count: record.bharat_sathi_rating_count || record.rating_count || record.user_ratings || null,
       raw_data: record,
     }));
   }

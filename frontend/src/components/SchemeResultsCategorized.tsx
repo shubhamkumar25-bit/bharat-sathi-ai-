@@ -1,15 +1,42 @@
-import { ChevronRight, ExternalLink, FileText, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ChevronRight, ExternalLink, FileText, ShieldCheck, AlertCircle, Users, Star, ArrowUpDown } from 'lucide-react';
 import { SchemeMatch } from '../types/eligibility';
+import { useState } from 'react';
 
 interface SchemeResultsCategorizedProps {
   matches: SchemeMatch[];
   onStartOver: () => void;
 }
 
+type SortOption = 'best_match' | 'most_beneficiaries' | 'highest_rated' | 'recently_updated';
+
 export function SchemeResultsCategorized({ matches, onStartOver }: SchemeResultsCategorizedProps) {
-  const highlyRelevant = matches.filter(m => m.matchCategory === 'highly_relevant');
-  const mayBeEligible = matches.filter(m => m.matchCategory === 'may_be_eligible');
-  const exploreMore = matches.filter(m => m.matchCategory === 'explore_more');
+  const [sortBy, setSortBy] = useState<SortOption>('best_match');
+
+  // Sort matches based on selected option
+  const sortedMatches = [...matches].sort((a, b) => {
+    switch (sortBy) {
+      case 'best_match':
+        return (b.eligibilityPercentage || 0) - (a.eligibilityPercentage || 0);
+      case 'most_beneficiaries':
+        const aBeneficiaries = parseBeneficiaryCount(a.scheme.beneficiary_count);
+        const bBeneficiaries = parseBeneficiaryCount(b.scheme.beneficiary_count);
+        return bBeneficiaries - aBeneficiaries;
+      case 'highest_rated':
+        const aRating = a.scheme.bharat_sathi_rating || 0;
+        const bRating = b.scheme.bharat_sathi_rating || 0;
+        return bRating - aRating;
+      case 'recently_updated':
+        const aDate = new Date(a.scheme.last_verified_date || 0);
+        const bDate = new Date(b.scheme.last_verified_date || 0);
+        return bDate.getTime() - aDate.getTime();
+      default:
+        return 0;
+    }
+  });
+
+  const highlyRelevant = sortedMatches.filter(m => m.matchCategory === 'highly_relevant');
+  const mayBeEligible = sortedMatches.filter(m => m.matchCategory === 'may_be_eligible');
+  const exploreMore = sortedMatches.filter(m => m.matchCategory === 'explore_more');
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -19,11 +46,37 @@ export function SchemeResultsCategorized({ matches, onStartOver }: SchemeResults
           Government Schemes
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-slate-950 dark:text-white mb-3">
-          Based on your profile, we found {matches.length} potentially relevant schemes
+          Based on your profile, we found {matches.length} potentially eligible schemes
         </h1>
         <p className="text-lg text-slate-600 dark:text-slate-300">
           These schemes match your eligibility criteria. Please verify eligibility on official websites before applying.
         </p>
+      </div>
+
+      {/* Sorting Options */}
+      <div className="mb-6 flex flex-wrap gap-2 justify-center">
+        <span className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 mr-2">
+          <ArrowUpDown className="h-4 w-4" />
+          Sort by:
+        </span>
+        {[
+          { value: 'best_match', label: 'Best Match' },
+          { value: 'most_beneficiaries', label: 'Most Beneficiaries' },
+          { value: 'highest_rated', label: 'Highest Rated' },
+          { value: 'recently_updated', label: 'Recently Updated' },
+        ].map((option) => (
+          <button
+            key={option.value}
+            onClick={() => setSortBy(option.value as SortOption)}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              sortBy === option.value
+                ? 'bg-saffron-500 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
 
       <div className="space-y-8">
@@ -100,6 +153,21 @@ export function SchemeResultsCategorized({ matches, onStartOver }: SchemeResults
   );
 }
 
+function parseBeneficiaryCount(count: any): number {
+  if (!count) return 0;
+  if (typeof count === 'number') return count;
+  if (typeof count === 'string') {
+    // Parse strings like "12.4 Lakh", "8,52,341", etc.
+    const numStr = count.replace(/[^0-9.]/g, '');
+    const num = parseFloat(numStr);
+    if (count.toLowerCase().includes('lakh')) {
+      return num * 100000;
+    }
+    return num || 0;
+  }
+  return 0;
+}
+
 function SchemeCard({ match }: { match: SchemeMatch }) {
   const scheme = match.scheme;
   
@@ -113,7 +181,27 @@ function SchemeCard({ match }: { match: SchemeMatch }) {
   
   // Get the data source
   const dataSource = scheme.source || 'Open Government Data Platform';
-  
+
+  // Format beneficiary count
+  const formatBeneficiaryCount = (count: any) => {
+    if (!count) return null;
+    if (typeof count === 'number') {
+      if (count >= 100000) {
+        return `${(count / 100000).toFixed(1)} Lakh`;
+      }
+      return count.toLocaleString('en-IN');
+    }
+    if (typeof count === 'string') {
+      return count;
+    }
+    return null;
+  };
+
+  const beneficiaryCount = formatBeneficiaryCount(scheme.beneficiary_count);
+  const applicationsReceived = formatBeneficiaryCount(scheme.applications_received);
+  const applicationsApproved = formatBeneficiaryCount(scheme.applications_approved);
+  const amountDisbursed = scheme.amount_disbursed;
+
   return (
     <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm dark:bg-slate-900 dark:border-slate-800">
       <div className="flex items-start justify-between mb-4">
@@ -133,23 +221,114 @@ function SchemeCard({ match }: { match: SchemeMatch }) {
             </span>
           </div>
         </div>
-        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-          match.confidenceScore === 'high' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-          match.confidenceScore === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-          'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-        }`}>
-          {match.confidenceScore === 'high' ? 'High Match' : match.confidenceScore === 'medium' ? 'Medium Match' : 'Low Match'}
+      </div>
+
+      {/* Eligibility Match */}
+      <div className="mb-4 p-4 bg-green-50 rounded-2xl dark:bg-green-950/20">
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+          <span className="font-semibold text-green-900 dark:text-green-300">
+            🎯 Eligibility Match: {match.eligibilityPercentage || 0}%
+          </span>
+        </div>
+        <p className="text-sm text-green-800 dark:text-green-400 mb-2">
+          Potentially Eligible
+        </p>
+        <div className="space-y-1">
+          {match.eligibilityExplanation && match.eligibilityExplanation.length > 0 ? (
+            match.eligibilityExplanation.slice(0, 4).map((explanation, index) => (
+              <div key={index} className="flex items-start gap-2 text-sm text-green-700 dark:text-green-400">
+                <span className="text-green-600 dark:text-green-500 mt-0.5">✓</span>
+                <span>{explanation}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-green-700 dark:text-green-400">
+              {match.eligibilityReason}
+            </p>
+          )}
         </div>
       </div>
 
-      <div className="mb-4">
-        <h4 className="text-sm font-semibold text-slate-950 dark:text-white mb-2 flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-saffron-500" />
-          Why it matches
-        </h4>
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          {match.eligibilityReason}
-        </p>
+      {/* Government Beneficiary/Usage Statistics */}
+      {(beneficiaryCount || applicationsReceived || applicationsApproved || amountDisbursed) && (
+        <div className="mb-4 p-4 bg-blue-50 rounded-2xl dark:bg-blue-950/20">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <span className="font-semibold text-blue-900 dark:text-blue-300">
+              👥 Government Beneficiary/Usage Data
+            </span>
+          </div>
+          <div className="space-y-2 text-sm">
+            {beneficiaryCount && (
+              <div className="flex items-center justify-between">
+                <span className="text-blue-800 dark:text-blue-400">Beneficiaries:</span>
+                <span className="font-semibold text-blue-900 dark:text-blue-300">{beneficiaryCount}</span>
+              </div>
+            )}
+            {applicationsReceived && (
+              <div className="flex items-center justify-between">
+                <span className="text-blue-800 dark:text-blue-400">Applications Received:</span>
+                <span className="font-semibold text-blue-900 dark:text-blue-300">{applicationsReceived}</span>
+              </div>
+            )}
+            {applicationsApproved && (
+              <div className="flex items-center justify-between">
+                <span className="text-blue-800 dark:text-blue-400">Applications Approved:</span>
+                <span className="font-semibold text-blue-900 dark:text-blue-300">{applicationsApproved}</span>
+              </div>
+            )}
+            {amountDisbursed && (
+              <div className="flex items-center justify-between">
+                <span className="text-blue-800 dark:text-blue-400">Amount Disbursed:</span>
+                <span className="font-semibold text-blue-900 dark:text-blue-300">{amountDisbursed}</span>
+              </div>
+            )}
+            <div className="pt-2 border-t border-blue-200 dark:border-blue-800 mt-2">
+              {scheme.beneficiary_data_period && (
+                <p className="text-blue-700 dark:text-blue-400">
+                  <span className="font-medium">Period:</span> {scheme.beneficiary_data_period}
+                </p>
+              )}
+              {scheme.beneficiary_data_source && (
+                <p className="text-blue-700 dark:text-blue-400">
+                  <span className="font-medium">Source:</span> {scheme.beneficiary_data_source}
+                </p>
+              )}
+              {scheme.beneficiary_data_last_updated && (
+                <p className="text-blue-700 dark:text-blue-400">
+                  <span className="font-medium">Last Updated:</span> {scheme.beneficiary_data_last_updated}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bharat Sathi User Rating */}
+      <div className="mb-4 p-4 bg-yellow-50 rounded-2xl dark:bg-yellow-950/20">
+        <div className="flex items-center gap-2 mb-2">
+          <Star className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+          <span className="font-semibold text-yellow-900 dark:text-yellow-300">
+            ⭐ Bharat Sathi User Rating
+          </span>
+        </div>
+        {scheme.bharat_sathi_rating ? (
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-yellow-900 dark:text-yellow-300">
+              {scheme.bharat_sathi_rating.toFixed(1)}/5
+            </span>
+            {scheme.bharat_sathi_rating_count && (
+              <span className="text-sm text-yellow-700 dark:text-yellow-400">
+                Based on {scheme.bharat_sathi_rating_count} Bharat Sathi user ratings
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-yellow-700 dark:text-yellow-400">
+            No ratings yet
+          </p>
+        )}
       </div>
 
       <div className="mb-4">
@@ -169,35 +348,6 @@ function SchemeCard({ match }: { match: SchemeMatch }) {
             <li className="text-slate-500 italic">Benefits information not available in the connected dataset.</li>
           )}
         </ul>
-      </div>
-
-      <div className="mb-4">
-        <h4 className="text-sm font-semibold text-slate-950 dark:text-white mb-2 flex items-center gap-2">
-          <FileText className="h-4 w-4 text-saffron-500" />
-          Required Documents
-        </h4>
-        <ul className="text-sm text-slate-600 dark:text-slate-300 space-y-1">
-          {scheme.required_documents && scheme.required_documents.length > 0 ? (
-            scheme.required_documents.map((doc, index) => (
-              <li key={index} className="flex items-start gap-2">
-                <span className="text-saffron-500 mt-1">•</span>
-                {doc}
-              </li>
-            ))
-          ) : (
-            <li className="text-slate-500 italic">Document information not available in the connected dataset.</li>
-          )}
-        </ul>
-      </div>
-
-      <div className="mb-4">
-        <h4 className="text-sm font-semibold text-slate-950 dark:text-white mb-2 flex items-center gap-2">
-          <FileText className="h-4 w-4 text-saffron-500" />
-          Application Process
-        </h4>
-        <p className="text-sm text-slate-600 dark:text-slate-300">
-          {scheme.application_process || 'Application process information not available in the connected dataset.'}
-        </p>
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-700">

@@ -10,6 +10,7 @@ import { healthRoutes } from './routes/healthRoutes.js';
 import dataSyncRoutes from './routes/dataSyncRoutes.js';
 import schemeMatchingRoutes from './routes/schemeMatchingRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
+import { adminRoutes } from './routes/adminRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorMiddleware.js';
 
 dotenv.config();
@@ -29,6 +30,7 @@ app.use('/api/schemes', schemesRoutes);
 app.use('/api/admin/data-gov', dataSyncRoutes);
 app.use('/api/schemes-db', schemeMatchingRoutes);
 app.use('/api/location', locationRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

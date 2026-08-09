@@ -150,6 +150,9 @@ export interface SchemeMatch {
   confidenceScore: 'high' | 'medium' | 'low';
   matchCategory: 'highly_relevant' | 'may_be_eligible' | 'explore_more';
   eligibilityExplanation: string[];
+  eligibilityPercentage?: number;
+  matchedCriteria?: number;
+  totalCriteria?: number;
 }
 
 export interface GovernmentScheme {
@@ -175,4 +178,15 @@ export interface GovernmentScheme {
   official_url: string;
   last_verified_date: string;
   source: string;
+  // Beneficiary/Usage Statistics (from government data)
+  beneficiary_count?: string | number | null;
+  applications_received?: string | number | null;
+  applications_approved?: string | number | null;
+  amount_disbursed?: string | number | null;
+  beneficiary_data_source?: string | null;
+  beneficiary_data_period?: string | null;
+  beneficiary_data_last_updated?: string | null;
+  // Bharat Sathi User Ratings
+  bharat_sathi_rating?: number | null;
+  bharat_sathi_rating_count?: number | null;
 }
