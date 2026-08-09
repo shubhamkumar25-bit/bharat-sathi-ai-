@@ -5,7 +5,7 @@ import { syncProfile } from '@/services/backend';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { firestoreDb } from '@/lib/firebase';
 
-type UserRole = 'guest' | 'user' | 'admin';
+type UserRole = 'guest' | 'user' | 'admin' | 'super_admin';
 
 type AuthContextValue = {
   user: User | null;
@@ -68,7 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           roleUnsubscribe = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists() && docSnap.data().role) {
-              setRole(docSnap.data().role === 'admin' ? 'admin' : 'user');
+              const dbRole = docSnap.data().role;
+              setRole(dbRole === 'admin' || dbRole === 'super_admin' ? dbRole : 'user');
             } else {
               setRole('user');
             }

@@ -1,6 +1,6 @@
 import { getFirebaseAdminDb } from '../config/firebaseAdmin.js';
 
-// Authorized admin emails
+// Authorized admin emails (fallback/bootstrap)
 const AUTHORIZED_ADMINS = {
   OWNER: 'muktai@navgurukul.org',
   ADMIN: 'shbhuamkumar25@navgurukul.org'
@@ -8,50 +8,95 @@ const AUTHORIZED_ADMINS = {
 
 /**
  * Server-side admin authorization middleware
- * Verifies that the authenticated user is one of the authorized admin accounts
+ * Verifies that the authenticated user has an 'admin' or 'super_admin' role
  */
 export async function requireAdmin(req, res, next) {
-  if (!req.user || !req.user.email) {
+  if (!req.user || !req.user.uid) {
     return res.status(403).json({ message: 'Forbidden: Admin access required.' });
   }
 
-  const userEmail = req.user.email.toLowerCase();
-  
-  // Check if user is authorized admin
-  const isOwner = userEmail === AUTHORIZED_ADMINS.OWNER.toLowerCase();
-  const isAdmin = userEmail === AUTHORIZED_ADMINS.ADMIN.toLowerCase();
+  try {
+    const userEmail = req.user.email ? req.user.email.toLowerCase() : '';
+    
+    // Fallback/Bootstrap check
+    const isBootstrapOwner = userEmail === AUTHORIZED_ADMINS.OWNER.toLowerCase();
+    const isBootstrapAdmin = userEmail === AUTHORIZED_ADMINS.ADMIN.toLowerCase();
 
-  if (!isOwner && !isAdmin) {
-    return res.status(403).json({ message: 'Forbidden: Admin access required.' });
+    // Check custom claim role
+    const claimRole = req.user.role;
+
+    // Check database role
+    let dbRole = null;
+    try {
+      const db = getFirebaseAdminDb();
+      const userDoc = await db.collection('users').doc(req.user.uid).get();
+      if (userDoc.exists) {
+        dbRole = userDoc.data().role;
+      }
+    } catch (dbErr) {
+      console.warn('Error reading user role from DB, falling back to claims/email:', dbErr.message);
+    }
+
+    const finalRole = dbRole || claimRole;
+
+    if (finalRole === 'admin' || finalRole === 'super_admin' || isBootstrapOwner || isBootstrapAdmin) {
+      req.adminRole = (finalRole === 'super_admin' || isBootstrapOwner) ? 'SUPER_ADMIN' : 'ADMIN';
+      req.adminEmail = req.user.email;
+      return next();
+    }
+  } catch (error) {
+    console.error('Error in requireAdmin middleware:', error);
   }
 
-  // Add admin role to request for use in controllers
-  req.adminRole = isOwner ? 'OWNER' : 'ADMIN';
-  req.adminEmail = req.user.email;
-
-  next();
+  return res.status(403).json({ message: 'Forbidden: Admin access required.' });
 }
 
 /**
- * Owner-only authorization middleware
- * Only the OWNER (muktai@navgurukul.org) can access these routes
+ * Server-side super admin authorization middleware
+ * Verifies that the authenticated user has a 'super_admin' role
  */
-export async function requireOwner(req, res, next) {
-  if (!req.user || !req.user.email) {
-    return res.status(403).json({ message: 'Forbidden: Owner access required.' });
+export async function requireSuperAdmin(req, res, next) {
+  if (!req.user || !req.user.uid) {
+    return res.status(403).json({ message: 'Forbidden: Super Admin access required.' });
   }
 
-  const userEmail = req.user.email.toLowerCase();
-  
-  if (userEmail !== AUTHORIZED_ADMINS.OWNER.toLowerCase()) {
-    return res.status(403).json({ message: 'Forbidden: Owner access required.' });
+  try {
+    const userEmail = req.user.email ? req.user.email.toLowerCase() : '';
+    
+    // Fallback/Bootstrap check
+    const isBootstrapOwner = userEmail === AUTHORIZED_ADMINS.OWNER.toLowerCase();
+
+    // Check custom claim role
+    const claimRole = req.user.role;
+
+    // Check database role
+    let dbRole = null;
+    try {
+      const db = getFirebaseAdminDb();
+      const userDoc = await db.collection('users').doc(req.user.uid).get();
+      if (userDoc.exists) {
+        dbRole = userDoc.data().role;
+      }
+    } catch (dbErr) {
+      console.warn('Error reading user role from DB, falling back to claims/email:', dbErr.message);
+    }
+
+    const finalRole = dbRole || claimRole;
+
+    if (finalRole === 'super_admin' || isBootstrapOwner) {
+      req.adminRole = 'SUPER_ADMIN';
+      req.adminEmail = req.user.email;
+      return next();
+    }
+  } catch (error) {
+    console.error('Error in requireSuperAdmin middleware:', error);
   }
 
-  req.adminRole = 'OWNER';
-  req.adminEmail = req.user.email;
-
-  next();
+  return res.status(403).json({ message: 'Forbidden: Super Admin access required.' });
 }
+
+// Deprecated alias for backwards compatibility
+export const requireOwner = requireSuperAdmin;
 
 /**
  * Get admin role for a user email
@@ -61,7 +106,7 @@ export function getAdminRole(email) {
   const normalizedEmail = email.toLowerCase();
   
   if (normalizedEmail === AUTHORIZED_ADMINS.OWNER.toLowerCase()) {
-    return 'OWNER';
+    return 'SUPER_ADMIN';
   }
   if (normalizedEmail === AUTHORIZED_ADMINS.ADMIN.toLowerCase()) {
     return 'ADMIN';

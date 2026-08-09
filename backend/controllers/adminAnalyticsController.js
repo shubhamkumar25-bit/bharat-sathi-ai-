@@ -2,6 +2,7 @@ import { getFirebaseAdminAuth, getFirebaseAdminDb } from '../config/firebaseAdmi
 import analyticsService from '../services/analyticsService.js';
 import sessionService from '../services/sessionService.js';
 import adminAuditService from '../services/adminAuditService.js';
+import systemLogsService from '../services/systemLogsService.js';
 
 /**
  * Get dashboard summary statistics
@@ -394,4 +395,256 @@ function convertToCSV(data) {
   }
   
   return csvRows.join('\n');
+}
+
+/**
+ * Get system logs for admin
+ */
+export async function getSystemLogs(req, res) {
+  try {
+    const { level, type, service, startDate, endDate, limit } = req.query;
+    
+    const filters = {};
+    if (level) filters.level = level;
+    if (type) filters.type = type;
+    if (service) filters.service = service;
+    if (startDate) filters.start_date = startDate;
+    if (endDate) filters.end_date = endDate;
+
+    const result = await systemLogsService.getSystemLogs(filters, parseInt(limit) || 100);
+    
+    res.json({
+      success: true,
+      logs: result.success ? result.data : []
+    });
+  } catch (error) {
+    console.error('Error getting system logs:', error);
+    res.status(500).json({ message: 'Error fetching system logs', error: error.message });
+  }
+}
+
+/**
+ * Get system settings
+ */
+export async function getSystemSettings(req, res) {
+  try {
+    const db = getFirebaseAdminDb();
+    const settingsDoc = await db.collection('admin_settings').doc('global').get();
+    
+    const defaultSettings = {
+      enableAnalytics: true,
+      enableAuditLogging: true,
+      dataRetentionDays: 90,
+      enableNotifications: true,
+      maintenanceMode: false
+    };
+
+    const settings = settingsDoc.exists ? { ...defaultSettings, ...settingsDoc.data() } : defaultSettings;
+    res.json({ success: true, settings });
+  } catch (error) {
+    console.error('Error getting system settings:', error);
+    res.status(500).json({ message: 'Error fetching settings', error: error.message });
+  }
+}
+
+/**
+ * Update system settings
+ */
+export async function updateSystemSettings(req, res) {
+  try {
+    // Only SUPER_ADMIN can update settings
+    if (req.adminRole !== 'SUPER_ADMIN') {
+      return res.status(403).json({ message: 'Forbidden: Super Admin access required to update settings.' });
+    }
+
+    const { enableAnalytics, enableAuditLogging, dataRetentionDays, enableNotifications, maintenanceMode } = req.body;
+    const settings = {
+      enableAnalytics: enableAnalytics !== false,
+      enableAuditLogging: enableAuditLogging !== false,
+      dataRetentionDays: parseInt(dataRetentionDays) || 90,
+      enableNotifications: enableNotifications !== false,
+      maintenanceMode: maintenanceMode === true,
+      updated_by: req.user.email,
+      updated_at: new Date().toISOString()
+    };
+
+    const db = getFirebaseAdminDb();
+    await db.collection('admin_settings').doc('global').set(settings, { merge: true });
+
+    // Log in audit log
+    await adminAuditService.logAction({
+      admin_id: req.user.uid,
+      admin_email: req.user.email,
+      action: 'SETTINGS_CHANGED',
+      target_type: 'settings',
+      target_id: 'global',
+      metadata: { settings }
+    });
+
+    res.json({ success: true, message: 'Settings updated successfully', settings });
+  } catch (error) {
+    console.error('Error updating system settings:', error);
+    res.status(500).json({ message: 'Error updating settings', error: error.message });
+  }
+}
+
+/**
+ * Get list of administrative accounts
+ */
+export async function getAdminsList(req, res) {
+  try {
+    // Only SUPER_ADMIN can see the admin list in Settings
+    if (req.adminRole !== 'SUPER_ADMIN') {
+      return res.status(403).json({ message: 'Forbidden: Super Admin access required.' });
+    }
+
+    const db = getFirebaseAdminDb();
+    const snapshot = await db.collection('users')
+      .where('role', 'in', ['admin', 'super_admin'])
+      .get();
+
+    const admins = snapshot.docs.map(doc => ({
+      uid: doc.id,
+      ...doc.data()
+    }));
+
+    res.json({ success: true, admins });
+  } catch (error) {
+    console.error('Error getting admin list:', error);
+    res.status(500).json({ message: 'Error fetching admin list', error: error.message });
+  }
+}
+
+/**
+ * Add or modify administrative privileges for a user
+ */
+export async function updateAdminRole(req, res) {
+  try {
+    // Only SUPER_ADMIN can update roles
+    if (req.adminRole !== 'SUPER_ADMIN') {
+      return res.status(403).json({ message: 'Forbidden: Super Admin access required.' });
+    }
+
+    const { uid } = req.params;
+    const { role } = req.body;
+
+    if (!['user', 'admin', 'super_admin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be user, admin, or super_admin.' });
+    }
+
+    if (uid === req.user.uid) {
+      return res.status(400).json({ message: 'You cannot change your own role to prevent lockouts.' });
+    }
+
+    const db = getFirebaseAdminDb();
+    const userDocRef = db.collection('users').doc(uid);
+    const userDoc = await userDocRef.get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const oldRole = userDoc.data().role || 'user';
+
+    // Update in Firestore
+    await userDocRef.update({
+      role,
+      updatedAt: new Date().toISOString()
+    });
+
+    // Update custom claim
+    await getFirebaseAdminAuth().setCustomUserClaims(uid, { role });
+
+    // Log to Audit Log
+    await adminAuditService.logAction({
+      admin_id: req.user.uid,
+      admin_email: req.user.email,
+      action: 'ADMIN_ROLE_CHANGED',
+      target_type: 'user',
+      target_id: uid,
+      metadata: { oldRole, newRole: role }
+    });
+
+    res.json({ success: true, message: `Successfully updated user role to ${role}` });
+  } catch (error) {
+    console.error('Error updating admin role:', error);
+    res.status(500).json({ message: 'Error updating user role', error: error.message });
+  }
+}
+
+/**
+ * Get global user activity timeline
+ */
+export async function getAdminActivity(req, res) {
+  try {
+    const { limit, eventType, feature, startDate, endDate } = req.query;
+    const db = getFirebaseAdminDb();
+    
+    let queryRef = db.collection('analytics_events');
+
+    if (eventType) {
+      queryRef = queryRef.where('event_name', '==', eventType);
+    }
+    if (feature) {
+      queryRef = queryRef.where('feature', '==', feature);
+    }
+    if (startDate) {
+      queryRef = queryRef.where('created_at', '>=', startDate);
+    }
+    if (endDate) {
+      queryRef = queryRef.where('created_at', '<=', endDate);
+    }
+
+    const snapshot = await queryRef.orderBy('created_at', 'desc').limit(parseInt(limit) || 100).get();
+    
+    const activity = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    res.json({ success: true, activity });
+  } catch (error) {
+    console.error('Error getting global user activity:', error);
+    res.status(500).json({ message: 'Error fetching activity', error: error.message });
+  }
+}
+
+/**
+ * Get schemes list for schemes admin
+ */
+export async function getSchemesList(req, res) {
+  try {
+    const { category, state, query } = req.query;
+    const db = getFirebaseAdminDb();
+    
+    let queryRef = db.collection('government_schemes');
+
+    if (category) {
+      queryRef = queryRef.where('category', '==', category);
+    }
+
+    const snapshot = await queryRef.get();
+    let schemes = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    if (state && state !== 'all') {
+      schemes = schemes.filter(s => s.state && (s.state.includes('all') || s.state.includes(state)));
+    }
+
+    if (query) {
+      const qLower = query.toLowerCase();
+      schemes = schemes.filter(s => 
+        (s.scheme_name && s.scheme_name.toLowerCase().includes(qLower)) ||
+        (s.ministry && s.ministry.toLowerCase().includes(qLower)) ||
+        (s.category && s.category.toLowerCase().includes(qLower))
+      );
+    }
+
+    res.json({ success: true, schemes });
+  } catch (error) {
+    console.error('Error getting schemes list:', error);
+    res.status(500).json({ message: 'Error fetching schemes', error: error.message });
+  }
 }

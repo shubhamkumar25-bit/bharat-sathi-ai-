@@ -1,4 +1,6 @@
 import express from 'express';
+import { requireAuth } from '../middleware/authMiddleware.js';
+import { requireAdmin } from '../middleware/adminAuthMiddleware.js';
 import {
   initializeDatasetRegistry,
   syncDataset,
@@ -11,6 +13,10 @@ import {
 } from '../controllers/dataSyncController.js';
 
 const router = express.Router();
+
+// Secure all routes with authentication and admin authorization
+router.use(requireAuth);
+router.use(requireAdmin);
 
 // Initialize dataset registry
 router.post('/registry/initialize', initializeDatasetRegistry);
