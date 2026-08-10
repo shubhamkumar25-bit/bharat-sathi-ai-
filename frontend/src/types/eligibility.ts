@@ -75,7 +75,9 @@ export interface EligibilityProfile {
   institutionType?: string;
   
   // Farmer-specific
-  landOwnership?: string;
+  landOwnership?: boolean | string;
+  farmSize?: string;
+  irrigationStatus?: boolean;
   landSize?: string;
   farmingType?: string;
   
@@ -156,11 +158,19 @@ export interface SchemeMatch {
 }
 
 export interface GovernmentScheme {
-  scheme_name: string;
-  ministry: string;
-  central_state: 'central' | 'state';
-  state: string[];
-  category: string;
+  id?: string;
+  title?: string;
+  summary?: string;
+  eligibility?: string;
+  documents?: string[];
+  applicationProcess?: string;
+  officialLink?: string;
+  lastDate?: string;
+  scheme_name?: string;
+  ministry?: string;
+  central_state?: 'central' | 'state';
+  state?: string[];
+  category?: string;
   age_requirement?: string;
   gender_requirement?: string;
   marital_status?: string;

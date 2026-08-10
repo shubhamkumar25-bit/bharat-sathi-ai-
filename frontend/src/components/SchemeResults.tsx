@@ -116,7 +116,7 @@ export function SchemeResults({ matches, onStartOver, bookmarkedIds = new Set(),
                     onClick={() => onToggleBookmark(match.scheme)}
                     className="focus-ring inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
                   >
-                    {bookmarkedIds.has(match.scheme.id) ? (
+                    {bookmarkedIds.has(match.scheme.id || match.scheme.scheme_name || '') ? (
                       <>
                         <BookmarkCheck className="h-4 w-4 text-saffron-500" />
                         Saved

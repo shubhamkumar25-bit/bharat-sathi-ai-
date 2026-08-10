@@ -65,7 +65,7 @@ export default function AppShell() {
     { label: t("profile"), to: appPaths.profile },
   ];
 
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'super_admin') {
     moreNavItems.push({ label: 'Admin', to: '/admin' });
   }
 

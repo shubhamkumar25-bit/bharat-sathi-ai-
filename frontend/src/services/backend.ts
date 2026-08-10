@@ -16,7 +16,7 @@ async function getAuthToken() {
     return null;
   }
 
-  return currentUser.getIdToken();
+  return currentUser.getIdToken(true);
 }
 
 async function request<T>(path: string, options: RequestOptions = {}) {

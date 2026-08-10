@@ -14,4 +14,5 @@ export default defineConfig({
             '/api': 'http://localhost:4000',
         },
     },
+    // For production, backend URL will be handled by environment variable or direct API calls
 });

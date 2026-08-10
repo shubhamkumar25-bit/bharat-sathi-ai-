@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import AppShell from "./components/layout/AppShell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 
 import { appPaths } from "./constants/paths";
 
@@ -131,158 +132,158 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminDashboard />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminUsers />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/users/:userId"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminUserDetail />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/analytics"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminDashboard />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/analytics/feature-usage"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminFeatureAnalytics />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/analytics/ai"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminAIAnalytics />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/analytics/government-schemes"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminSchemeAnalytics />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/analytics/retention"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminRetentionAnalytics />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/audit-log"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminAuditLog />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/settings"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <div className="flex">
                 <AdminSidebar />
                 <div className="flex-1 lg:ml-64 p-6">
                   <AdminSettings />
                 </div>
               </div>
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/data-sources"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <AdminDataSourcesPage />
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 
         <Route
           path="/admin/sync"
           element={
-            <ProtectedRoute>
+            <AdminProtectedRoute>
               <AdminSyncPage />
-            </ProtectedRoute>
+            </AdminProtectedRoute>
           }
         />
 

@@ -10,6 +10,8 @@ import {
   getRetentionAnalytics,
   getAllUsersAdmin,
   getUserDetail,
+  updateUserStatus,
+  deleteUserAdmin,
   getAuditLogs,
   exportAnalytics,
   getSystemLogs,
@@ -44,6 +46,8 @@ adminRoutes.get('/analytics/retention', requireAuth, requireAdmin, getRetentionA
 // User Management
 adminRoutes.get('/users', requireAuth, requireAdmin, getAllUsersAdmin);
 adminRoutes.get('/users/:userId', requireAuth, requireAdmin, getUserDetail);
+adminRoutes.patch('/users/:userId/status', requireAuth, requireAdmin, updateUserStatus);
+adminRoutes.delete('/users/:userId', requireAuth, requireAdmin, deleteUserAdmin);
 
 // Audit Logs
 adminRoutes.get('/audit-log', requireAuth, requireAdmin, getAuditLogs);

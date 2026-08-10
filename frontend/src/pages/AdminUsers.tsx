@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Search, Filter, UserRound, Calendar, Clock, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -9,6 +10,8 @@ interface User {
   photoURL: string | null;
   creationTime: string;
   lastSignInTime: string | null;
+  role?: string;
+  status?: string;
 }
 
 export function AdminUsers() {
@@ -21,7 +24,7 @@ export function AdminUsers() {
 
   useEffect(() => {
     fetchUsers();
-  }, [filter]);
+  }, [filter, user]);
 
   async function fetchUsers() {
     setLoading(true);
@@ -45,7 +48,7 @@ export function AdminUsers() {
       }
 
       const data = await response.json();
-      setUsers(data.users);
+      setUsers(data.users || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load users');
     } finally {
@@ -149,6 +152,14 @@ export function AdminUsers() {
                         <div>
                           <div className="font-semibold text-slate-900 dark:text-white">{u.displayName || 'No Name'}</div>
                           <div className="text-xs text-slate-500">{u.email}</div>
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                              {u.role || 'user'}
+                            </span>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${u.status === 'suspended' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'}`}>
+                              {u.status || 'active'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -166,10 +177,10 @@ export function AdminUsers() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                      <Link to={`/admin/users/${u.uid}`} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
                         View Details
                         <ChevronRight className="h-3 w-3" />
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))

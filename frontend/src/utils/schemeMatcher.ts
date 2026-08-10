@@ -283,14 +283,16 @@ export function matchSchemes(profile: EligibilityProfile): SchemeMatch[] {
     const matchResult = evaluateEligibility(profile, scheme);
     if (matchResult.isEligible) {
       matches.push({
-        scheme,
+        scheme: scheme as any,
         eligibilityReason: matchResult.reason,
         benefits: scheme.benefits,
         requiredDocuments: scheme.documents,
         applicationProcess: scheme.applicationProcess,
         officialLink: scheme.officialLink,
         lastDate: scheme.lastDate,
-        confidenceScore: matchResult.confidence
+        confidenceScore: matchResult.confidence,
+        matchCategory: 'may_be_eligible',
+        eligibilityExplanation: [matchResult.reason]
       });
     }
   }

@@ -1,9 +1,8 @@
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ShieldAlert } from 'lucide-react';
 
 export function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, role, initializing } = useAuth();
+  const { user, role, initializing, setAuthModalOpen } = useAuth();
 
   if (initializing) {
     return (
@@ -17,7 +16,23 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
   }
 
   if (!user) {
-    return <Navigate to="/" replace />;
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center p-6">
+        <div className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <ShieldAlert className="mx-auto mb-4 h-16 w-16 text-saffron-500" />
+          <h2 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">Admin access required</h2>
+          <p className="mb-6 text-slate-600 dark:text-slate-400">
+            Sign in to continue to the administrator dashboard.
+          </p>
+          <button
+            onClick={() => setAuthModalOpen(true)}
+            className="w-full rounded-2xl bg-saffron-500 px-4 py-3 text-sm font-bold text-white transition hover:bg-saffron-600"
+          >
+            Sign in
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (role !== 'admin' && role !== 'super_admin') {

@@ -49,7 +49,8 @@ function evaluateEligibility(profile: EligibilityProfile, scheme: GovernmentSche
   const maxScore = 10;
 
   // State eligibility
-  if (scheme.state.includes('all') || (profile.state && scheme.state.includes(profile.state))) {
+  const states = scheme.state || [];
+  if (states.includes('all') || (profile.state && states.includes(profile.state))) {
     score += 2;
     explanation.push('Your state is eligible for this scheme');
   } else if (!profile.state) {
