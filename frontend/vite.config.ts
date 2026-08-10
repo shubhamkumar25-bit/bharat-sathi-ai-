@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 export default defineConfig({
+  // GitHub Pages serves the app under /<repo-name>/ so we set base accordingly.
+  // In local dev (VITE_BASE_PATH is unset) this defaults to '/' which keeps the
+  // dev server working normally.
+  base: process.env.VITE_BASE_PATH ?? '/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -15,5 +19,4 @@ export default defineConfig({
       '/api': 'http://localhost:4000',
     },
   },
-  // For production, backend URL will be handled by environment variable or direct API calls
 });
