@@ -88,19 +88,11 @@ function getFirebaseApp() {
     process.env.VITE_FIREBASE_PROJECT_ID;
 
   if (!serviceAccount) {
-    if (projectId) {
-      console.warn(
-        '[firebase-admin] No service account credentials found. Initializing with project ID only.'
-      );
-
-      return initializeApp({
-        projectId,
-        storageBucket,
-      });
-    }
-
     throw new Error(
-      'Firebase Admin credentials are missing.'
+      '[firebase-admin] Firebase Admin credentials are missing. ' +
+      'Set FIREBASE_SERVICE_ACCOUNT_JSON (full JSON string) or ' +
+      'FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY ' +
+      'in your environment variables.'
     );
   }
 
