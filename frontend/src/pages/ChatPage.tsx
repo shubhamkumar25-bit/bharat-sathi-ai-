@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Mic, MessagesSquare, Send, Volume2, RotateCcw, Pause, Play, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Copy, Mic, MessagesSquare, Send, Volume2, RotateCcw, Pause, Play, Loader2, ChevronDown } from 'lucide-react';
 import { clearChatConversation, loadChatHistory, sendChatMessage, type ChatApiMessage } from '@/services/backend';
 import { speak, stopSpeaking, isSpeaking, detectTextLocale, detectSpeechInputLang } from '@/services/speechService';
 
@@ -12,70 +12,79 @@ const welcomeMessage: ChatApiMessage = {
 
 const conversationKey = 'bharatsaathi-chat-conversation-id';
 
-type SpeechRecognitionResultLike = {
-  0: { transcript: string };
-};
+// All supported voice languages
+const VOICE_LANGUAGES = [
+  { code: 'en-IN', label: 'English',    native: 'English'   },
+  { code: 'hi-IN', label: 'Hindi',      native: 'हिंदी'      },
+  { code: 'mr-IN', label: 'Marathi',    native: 'मराठी'      },
+  { code: 'ta-IN', label: 'Tamil',      native: 'தமிழ்'      },
+  { code: 'te-IN', label: 'Telugu',     native: 'తెలుగు'     },
+  { code: 'bn-IN', label: 'Bengali',    native: 'বাংলা'      },
+  { code: 'gu-IN', label: 'Gujarati',   native: 'ગુજરાતી'    },
+  { code: 'pa-IN', label: 'Punjabi',    native: 'ਪੰਜਾਬੀ'    },
+  { code: 'kn-IN', label: 'Kannada',    native: 'ಕನ್ನಡ'      },
+  { code: 'ml-IN', label: 'Malayalam',  native: 'മലയാളം'    },
+  { code: 'ur-IN', label: 'Urdu',       native: 'اردو'       },
+  { code: 'or-IN', label: 'Odia',       native: 'ଓଡ଼ିଆ'     },
+];
 
-type SpeechRecognitionEventLike = {
-  results: ArrayLike<SpeechRecognitionResultLike>;
-};
-
+type SpeechRecognitionResultLike = { 0: { transcript: string } };
+type SpeechRecognitionEventLike  = { results: ArrayLike<SpeechRecognitionResultLike> };
 type SpeechRecognitionType = {
   lang: string;
   interimResults: boolean;
   continuous: boolean;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onend:    (() => void) | null;
+  onerror:  (() => void) | null;
   start: () => void;
-  stop: () => void;
+  stop:  () => void;
 };
-
 type SpeechRecognitionConstructor = new () => SpeechRecognitionType;
 
 function createSpeechRecognition(): SpeechRecognitionType | null {
-  const speechWindow = window as Window & {
+  const w = window as Window & {
     SpeechRecognition?: SpeechRecognitionConstructor;
     webkitSpeechRecognition?: SpeechRecognitionConstructor;
   };
-
-  const SpeechRecognitionConstructor = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
-
-  if (!SpeechRecognitionConstructor) {
-    return null;
-  }
-
-  return new SpeechRecognitionConstructor();
+  const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
+  return Ctor ? new Ctor() : null;
 }
 
 export function ChatPage() {
-  const [messages, setMessages] = useState<ChatApiMessage[]>([welcomeMessage]);
-  const [draft, setDraft] = useState('');
-  const [conversationId, setConversationId] = useState(() => window.localStorage.getItem(conversationKey) || '');
-  const [loadingHistory, setLoadingHistory] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState('');
-  const [listening, setListening] = useState(false);
+  const [messages, setMessages]               = useState<ChatApiMessage[]>([welcomeMessage]);
+  const [draft, setDraft]                     = useState('');
+  const [conversationId, setConversationId]   = useState(() => window.localStorage.getItem(conversationKey) || '');
+  const [loadingHistory, setLoadingHistory]   = useState(true);
+  const [sending, setSending]                 = useState(false);
+  const [error, setError]                     = useState('');
+  const [listening, setListening]             = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
-  const [voiceLang, setVoiceLang] = useState<'en-IN' | 'hi-IN'>('en-IN');
-  const [isPaused, setIsPaused] = useState(false);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [isPaused, setIsPaused]               = useState(false);
+  const [voiceLang, setVoiceLang]             = useState('en-IN');
+  const [langMenuOpen, setLangMenuOpen]       = useState(false);
+
+  const scrollRef      = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
-
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const langMenuRef    = useRef<HTMLDivElement | null>(null);
 
-  const lastAssistantMessage = useMemo
+  // Close lang dropdown when clicking outside
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setLangMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
 
   useEffect(() => {
-    if (!conversationId) {
-      setLoadingHistory(false);
-      return;
-    }
-
+    if (!conversationId) { setLoadingHistory(false); return; }
     void loadChatHistory().then((result) => {
       const conversations = Array.isArray(result?.conversations) ? result.conversations : [];
-      const conversation = conversations.find((item) => item.id === conversationId) || conversations[0];
-
+      const conversation  = conversations.find((item) => item.id === conversationId) || conversations[0];
       if (conversation) {
         setConversationId(conversation.id);
         window.localStorage.setItem(conversationKey, conversation.id);
@@ -90,56 +99,38 @@ export function ChatPage() {
   }, [messages, sending]);
 
   useEffect(() => {
-    return () => {
-      recognitionRef.current?.stop();
-      stopSpeaking();
-    };
+    return () => { recognitionRef.current?.stop(); stopSpeaking(); };
   }, []);
 
   useEffect(() => {
-    const checkSpeaking = () => {
-      if (!isSpeaking() && speakingMessageId) {
-        setSpeakingMessageId(null);
-        setIsPaused(false);
-      }
-    };
-    const interval = setInterval(checkSpeaking, 500);
+    const interval = setInterval(() => {
+      if (!isSpeaking() && speakingMessageId) { setSpeakingMessageId(null); setIsPaused(false); }
+    }, 500);
     return () => clearInterval(interval);
   }, [speakingMessageId]);
 
   function startListening() {
-    // Always create a fresh instance — never reuse a stale one with old lang
+    // Always fresh instance so lang is never stale
     if (recognitionRef.current) {
       recognitionRef.current.onresult = null;
-      recognitionRef.current.onend = null;
-      recognitionRef.current.onerror = null;
+      recognitionRef.current.onend    = null;
+      recognitionRef.current.onerror  = null;
       try { recognitionRef.current.stop(); } catch { /* ignore */ }
     }
     recognitionRef.current = null;
 
     const recognition = createSpeechRecognition();
+    if (!recognition) { setError('Aapke browser mein Speech Recognition support nahi hai.'); return; }
 
-    if (!recognition) {
-      setError('Aapke browser mein Speech Recognition support nahi hai.');
-      return;
-    }
-
-    // Detect lang from current draft or user-selected voiceLang
-    recognition.lang = detectSpeechInputLang(draft, voiceLang);
+    recognition.lang           = detectSpeechInputLang(draft, voiceLang);
     recognition.interimResults = true;
-    recognition.continuous = false;
-
+    recognition.continuous     = false;
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
-      const transcript = Array.from(event.results)
-        .map((result) => result[0]?.transcript || '')
-        .join(' ');
+      const transcript = Array.from(event.results).map((r) => r[0]?.transcript || '').join(' ');
       setDraft(transcript.trim());
     };
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => {
-      setListening(false);
-      setError('Voice input mein problem hui. Dobara koshish karein.');
-    };
+    recognition.onend   = () => setListening(false);
+    recognition.onerror = () => { setListening(false); setError('Voice input mein problem hui. Dobara koshish karein.'); };
 
     recognitionRef.current = recognition;
     setError('');
@@ -147,50 +138,26 @@ export function ChatPage() {
     recognition.start();
   }
 
-  function stopListening() {
-    recognitionRef.current?.stop();
-    setListening(false);
-  }
+  function stopListening() { recognitionRef.current?.stop(); setListening(false); }
 
   function handleVoicePlay(messageId: string, content: string) {
-    if (speakingMessageId === messageId && isPaused) {
-      window.speechSynthesis.resume();
-      setIsPaused(false);
-      return;
-    }
-
-    if (speakingMessageId === messageId && !isPaused) {
-      window.speechSynthesis.pause();
-      setIsPaused(true);
-      return;
-    }
-
+    if (speakingMessageId === messageId && isPaused) { window.speechSynthesis.resume(); setIsPaused(false); return; }
+    if (speakingMessageId === messageId && !isPaused) { window.speechSynthesis.pause(); setIsPaused(true); return; }
     stopSpeaking();
     setSpeakingMessageId(messageId);
     setIsPaused(false);
     speak(content, detectTextLocale(content));
   }
 
-  function handleVoiceStop() {
-    stopSpeaking();
-    setSpeakingMessageId(null);
-    setIsPaused(false);
-  }
+  function handleVoiceStop() { stopSpeaking(); setSpeakingMessageId(null); setIsPaused(false); }
 
   async function handleSend() {
     const message = draft.trim();
-
-    if (!message || sending) {
-      return;
-    }
+    if (!message || sending) return;
 
     const optimisticUserMessage: ChatApiMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: message,
-      createdAt: new Date().toISOString(),
+      id: crypto.randomUUID(), role: 'user', content: message, createdAt: new Date().toISOString(),
     };
-
     const optimisticMessages = [...messages, optimisticUserMessage];
     setMessages(optimisticMessages);
     setDraft('');
@@ -198,12 +165,7 @@ export function ChatPage() {
     setError('');
 
     try {
-      const result = await sendChatMessage({
-        message,
-        conversationId: conversationId || undefined,
-        history: optimisticMessages,
-      });
-
+      const result = await sendChatMessage({ message, conversationId: conversationId || undefined, history: optimisticMessages });
       setConversationId(result.conversationId);
       window.localStorage.setItem(conversationKey, result.conversationId);
       const serverMsgs = Array.isArray(result?.messages) ? result.messages : [];
@@ -217,24 +179,15 @@ export function ChatPage() {
   }
 
   async function handleClear() {
-    // 1. Stop any active voice recording
     if (recognitionRef.current) {
       recognitionRef.current.onresult = null;
-      recognitionRef.current.onend = null;
-      recognitionRef.current.onerror = null;
+      recognitionRef.current.onend    = null;
+      recognitionRef.current.onerror  = null;
       try { recognitionRef.current.stop(); } catch { /* ignore */ }
       recognitionRef.current = null;
     }
-
-    // 2. Stop any active TTS playback
     stopSpeaking();
-
-    // 3. Clear backend conversation if one exists
-    if (conversationId) {
-      await clearChatConversation(conversationId).catch(() => undefined);
-    }
-
-    // 4. Reset ALL chat-related states
+    if (conversationId) await clearChatConversation(conversationId).catch(() => undefined);
     setMessages([welcomeMessage]);
     setDraft('');
     setConversationId('');
@@ -244,14 +197,12 @@ export function ChatPage() {
     setSpeakingMessageId(null);
     setIsPaused(false);
     setVoiceLang('en-IN');
-
-    // 5. Clear persisted conversation from localStorage
     window.localStorage.removeItem(conversationKey);
   }
 
-  async function handleCopy(text: string) {
-    await navigator.clipboard.writeText(text);
-  }
+  async function handleCopy(text: string) { await navigator.clipboard.writeText(text); }
+
+  const selectedLang = VOICE_LANGUAGES.find((l) => l.code === voiceLang) || VOICE_LANGUAGES[0];
 
   return (
     <div className="grid gap-6 py-8 lg:grid-cols-[1.05fr_0.95fr]">
@@ -262,36 +213,73 @@ export function ChatPage() {
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white sm:text-3xl">Automatic Multilingual Conversations</h1>
         <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-          BharatSaathi AI automatically detects your language (Hindi, Hinglish, English, Tamil, Telugu, Bengali, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Urdu, Odia, etc.) and replies in the exact same language.
+          BharatSaathi AI automatically detects your language and replies in the same language — Hindi, English, Hinglish, Tamil, Telugu, Bengali, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Urdu, Odia, and more.
         </p>
 
         <div className="hero-frame space-y-4 p-4 sm:p-5 lg:p-6">
-          <div className="flex flex-wrap gap-2 sm:gap-3">
-            <button type="button" onClick={listening ? stopListening : startListening} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-2 sm:text-sm">
+
+          {/* Toolbar */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+
+            {/* Voice Input button */}
+            <button
+              type="button"
+              onClick={listening ? stopListening : startListening}
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition sm:px-4 sm:py-2 sm:text-sm ${
+                listening
+                  ? 'border-red-300 bg-red-50 text-red-600 dark:border-red-700 dark:bg-red-950/30 dark:text-red-400'
+                  : 'border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300'
+              }`}
+            >
               <Mic className={`h-4 w-4 text-saffron-500 ${listening ? 'animate-pulse' : ''}`} />
               {listening ? 'Listening...' : 'Voice Input'}
             </button>
 
-            {/* Voice language toggle — EN / HI */}
+            {/* Language selector dropdown */}
+            <div className="relative" ref={langMenuRef}>
+              <button
+                type="button"
+                onClick={() => setLangMenuOpen((o) => !o)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-saffron-300 bg-saffron-50 px-3 py-2 text-xs font-semibold text-saffron-700 transition hover:bg-saffron-100 dark:border-saffron-600 dark:bg-saffron-950/40 dark:text-saffron-300 sm:px-4 sm:py-2 sm:text-sm"
+                title="Select voice input language"
+              >
+                🎙 {selectedLang.native}
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${langMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {langMenuOpen && (
+                <div className="absolute left-0 top-full z-50 mt-2 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900">
+                  {VOICE_LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => { setVoiceLang(lang.code); setLangMenuOpen(false); }}
+                      className={`flex w-full items-center justify-between px-4 py-2.5 text-sm transition hover:bg-slate-50 dark:hover:bg-slate-800 ${
+                        voiceLang === lang.code
+                          ? 'bg-saffron-50 font-semibold text-saffron-700 dark:bg-saffron-950/40 dark:text-saffron-300'
+                          : 'text-slate-700 dark:text-slate-200'
+                      }`}
+                    >
+                      <span>{lang.label}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{lang.native}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Clear Chat */}
             <button
               type="button"
-              onClick={() => setVoiceLang((prev) => prev === 'en-IN' ? 'hi-IN' : 'en-IN')}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
-                voiceLang === 'hi-IN'
-                  ? 'border-saffron-400 bg-saffron-50 text-saffron-700 dark:border-saffron-600 dark:bg-saffron-950/40 dark:text-saffron-300'
-                  : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300'
-              }`}
-              title="Toggle voice input language between English and Hindi"
+              onClick={handleClear}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-2 sm:text-sm"
             >
-              {voiceLang === 'hi-IN' ? '🎙 हिंदी' : '🎙 English'}
-            </button>
-
-            <button type="button" onClick={handleClear} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-2 sm:text-sm">
               <RotateCcw className="h-4 w-4 text-saffron-500" />
               Clear Chat
             </button>
           </div>
 
+          {/* Chat messages */}
           <div ref={scrollRef} className="flex min-h-[400px] max-h-[50vh] flex-col space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950 sm:max-h-[30rem] sm:p-4">
             {loadingHistory ? (
               <div className="flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-300">
@@ -301,46 +289,27 @@ export function ChatPage() {
             ) : null}
 
             {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-[90%] rounded-3xl px-4 py-3 text-sm sm:max-w-[85%] ${
-                    message.role === 'user'
-                      ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950'
-                      : 'border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'
-                  }`}
-                >
+              <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[90%] rounded-3xl px-4 py-3 text-sm sm:max-w-[85%] ${
+                  message.role === 'user'
+                    ? 'bg-slate-950 text-white dark:bg-white dark:text-slate-950'
+                    : 'border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200'
+                }`}>
                   <div className="whitespace-pre-wrap leading-6 break-words">{message.content}</div>
                   <div className="mt-2 flex items-center gap-2">
                     {message.role === 'assistant' && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(message.content)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                          Copy
+                        <button type="button" onClick={() => handleCopy(message.content)} className="inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400">
+                          <Copy className="h-3.5 w-3.5" />Copy
                         </button>
                         {speakingMessageId === message.id ? (
-                          <button
-                            type="button"
-                            onClick={isPaused ? () => handleVoicePlay(message.id, message.content) : handleVoiceStop}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400"
-                          >
+                          <button type="button" onClick={isPaused ? () => handleVoicePlay(message.id, message.content) : handleVoiceStop} className="inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400">
                             {isPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
                             {isPaused ? 'Resume' : 'Stop'}
                           </button>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleVoicePlay(message.id, message.content)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400"
-                          >
-                            <Volume2 className="h-3.5 w-3.5" />
-                            Play
+                          <button type="button" onClick={() => handleVoicePlay(message.id, message.content)} className="inline-flex items-center gap-1 text-xs font-semibold text-saffron-600 dark:text-saffron-400">
+                            <Volume2 className="h-3.5 w-3.5" />Play
                           </button>
                         )}
                       </>
@@ -371,24 +340,19 @@ export function ChatPage() {
             </div>
           ) : null}
 
+          {/* Input row */}
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
               <input
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault();
-                    void handleSend();
-                  }
-                }}
+                onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void handleSend(); } }}
                 className="focus-ring w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
                 placeholder="Type in any language (Hindi, Hinglish, Tamil, Telugu, Bengali, English...)"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
-                lang="en"
               />
               <button
                 type="button"
@@ -402,8 +366,8 @@ export function ChatPage() {
             <button
               type="button"
               onClick={() => void handleSend()}
-              className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white dark:bg-white dark:text-slate-950"
               disabled={sending}
+              className="focus-ring inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white dark:bg-white dark:text-slate-950"
             >
               Send
               <Send className="h-4 w-4" />
