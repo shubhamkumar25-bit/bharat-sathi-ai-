@@ -106,21 +106,31 @@ export function ChatPage() {
   }, [speakingMessageId]);
 
   function startListening() {
-    const recognition = recognitionRef.current || createSpeechRecognition();
+    // Always create a fresh instance — never reuse a stale one with old lang
+    if (recognitionRef.current) {
+      recognitionRef.current.onresult = null;
+      recognitionRef.current.onend = null;
+      recognitionRef.current.onerror = null;
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
+    }
+    recognitionRef.current = null;
+
+    const recognition = createSpeechRecognition();
 
     if (!recognition) {
       setError('Aapke browser mein Speech Recognition support nahi hai.');
       return;
     }
 
-    recognition.lang = detectSpeechInputLang(
-      draft,
-      messages.filter((m) => m.role === 'user').map((m) => m.content)
-    );
+    // Detect lang from current draft only — never from previous messages
+    recognition.lang = detectSpeechInputLang(draft);
     recognition.interimResults = true;
     recognition.continuous = false;
+
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
-      const transcript = Array.from(event.results).map((result) => result[0]?.transcript || '').join(' ');
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript || '')
+        .join(' ');
       setDraft(transcript.trim());
     };
     recognition.onend = () => setListening(false);
@@ -205,12 +215,34 @@ export function ChatPage() {
   }
 
   async function handleClear() {
+    // 1. Stop any active voice recording
+    if (recognitionRef.current) {
+      recognitionRef.current.onresult = null;
+      recognitionRef.current.onend = null;
+      recognitionRef.current.onerror = null;
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+    }
+
+    // 2. Stop any active TTS playback
+    stopSpeaking();
+
+    // 3. Clear backend conversation if one exists
     if (conversationId) {
       await clearChatConversation(conversationId).catch(() => undefined);
     }
 
+    // 4. Reset ALL chat-related states
     setMessages([welcomeMessage]);
+    setDraft('');
     setConversationId('');
+    setSending(false);
+    setError('');
+    setListening(false);
+    setSpeakingMessageId(null);
+    setIsPaused(false);
+
+    // 5. Clear persisted conversation from localStorage
     window.localStorage.removeItem(conversationKey);
   }
 
