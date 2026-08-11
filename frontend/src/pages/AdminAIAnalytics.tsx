@@ -3,6 +3,8 @@ import { MessageSquare, Users, Activity, TrendingUp, BarChart3, RefreshCw, Downl
 import { useAuth } from '@/context/AuthContext';
 import { DateFilter } from '@/components/DateFilter';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface AIStats {
   uniqueUsers: number;
   totalMessages: number;
@@ -24,7 +26,7 @@ export function AdminAIAnalytics() {
     setError('');
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/analytics/ai', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/analytics/ai`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -50,7 +52,7 @@ export function AdminAIAnalytics() {
   const handleExport = async () => {
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/export?type=ai', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/export?type=ai`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

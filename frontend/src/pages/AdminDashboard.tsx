@@ -3,6 +3,8 @@ import { Shield, Users, Activity, TrendingUp, Calendar, BarChart3, ArrowUpRight,
 import { useAuth } from '@/context/AuthContext';
 import { DateFilter } from '@/components/DateFilter';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface DashboardStats {
   totalUsers: number;
   activeToday: number;
@@ -32,7 +34,7 @@ export function AdminDashboard() {
     setError('');
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/dashboard', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/dashboard`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -63,7 +65,7 @@ export function AdminDashboard() {
   const handleExport = async () => {
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/export?type=dashboard', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/export?type=dashboard`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

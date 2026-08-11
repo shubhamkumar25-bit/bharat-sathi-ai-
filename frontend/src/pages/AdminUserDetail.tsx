@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { ArrowLeft, UserRound, Mail, Calendar, Clock, Activity, MessageSquare, FileText, Bookmark, CheckCircle, ShieldAlert, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface UserActivity {
   id: string;
   event_name: string;
@@ -31,7 +33,7 @@ export function AdminUserDetail() {
     setError('');
     try {
       const token = await user?.getIdToken();
-      const response = await fetch(`http://localhost:4000/api/admin/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -74,7 +76,7 @@ export function AdminUserDetail() {
     setActioning(true);
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`http://localhost:4000/api/admin/users/${userId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -98,7 +100,7 @@ export function AdminUserDetail() {
     setActioning(true);
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`http://localhost:4000/api/admin/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,

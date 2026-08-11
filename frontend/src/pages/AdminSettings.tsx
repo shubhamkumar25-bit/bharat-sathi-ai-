@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Settings, Shield, Database, Bell, Save, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 export function AdminSettings() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,7 @@ export function AdminSettings() {
     setMessage('');
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/settings', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

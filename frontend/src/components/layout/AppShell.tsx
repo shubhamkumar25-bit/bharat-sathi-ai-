@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+﻿import { useTranslation } from "react-i18next";
 import { useEffect, useMemo, useState } from "react";
 import {
   Link,
@@ -30,21 +30,12 @@ export default function AppShell() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
 
-  const [language, setLanguage] = useState(
-    () => localStorage.getItem("bharatsaathi-language") || "en"
-  );
-
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const { user, role, signOut, setAuthModalOpen, setAuthMode } = useAuth();
 
   const navigate = useNavigate();
   const location = useLocation();
-
-  useEffect(() => {
-    i18n.changeLanguage(language);
-    localStorage.setItem("bharatsaathi-language", language);
-  }, [language, i18n]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -170,29 +161,6 @@ export default function AppShell() {
 
           {/* Right Actions */}
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2 lg:ml-2">
-            {/* Language */}
-            <label className="hidden items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 xl:inline-flex">
-              <span className="hidden 2xl:inline">{t("language")}</span>
-
-              <select
-                value={language}
-                onChange={(event) => setLanguage(event.target.value)}
-                className="max-w-[90px] bg-transparent outline-none"
-              >
-                <option value="en">{t("english")}</option>
-                <option value="hi">{t("hindi")}</option>
-                <option value="ta">{t("tamil")}</option>
-                <option value="te">{t("telugu")}</option>
-                <option value="bn">{t("bengali")}</option>
-                <option value="gu">{t("gujarati")}</option>
-                <option value="mr">मराठी</option>
-                <option value="pa">ਪੰਜਾਬੀ</option>
-                <option value="kn">ಕನ್ನಡ</option>
-                <option value="ml">മലയാളം</option>
-                <option value="ur">اردو</option>
-              </select>
-            </label>
-
             {/* Theme */}
             <button
               type="button"
@@ -284,29 +252,6 @@ export default function AppShell() {
         {menuOpen && (
           <div className="max-h-[calc(100vh-76px)] overflow-y-auto border-t border-slate-200/70 bg-white px-4 py-4 dark:border-slate-800/70 dark:bg-slate-950 lg:hidden">
             <div className="section-shell grid gap-2 px-0">
-              {/* Mobile Language */}
-              <label className="mb-2 flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
-                <span>{t("language")}</span>
-
-                <select
-                  value={language}
-                  onChange={(event) => setLanguage(event.target.value)}
-                  className="max-w-[150px] bg-transparent text-right outline-none"
-                >
-                  <option value="en">{t("english")}</option>
-                  <option value="hi">{t("hindi")}</option>
-                  <option value="ta">{t("tamil")}</option>
-                  <option value="te">{t("telugu")}</option>
-                  <option value="bn">{t("bengali")}</option>
-                  <option value="gu">{t("gujarati")}</option>
-                  <option value="mr">मराठी</option>
-                  <option value="pa">ਪੰਜਾਬੀ</option>
-                  <option value="kn">ಕನ್ನಡ</option>
-                  <option value="ml">മലയാളം</option>
-                  <option value="ur">اردو</option>
-                </select>
-              </label>
-
               {allNavItems.map((item) => (
                 <NavLink
                   key={item.to}

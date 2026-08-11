@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Search, Filter, UserRound, Calendar, Clock, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 interface User {
   uid: string;
@@ -34,7 +36,7 @@ export function AdminUsers() {
       const params = new URLSearchParams();
       if (filter !== 'all') params.append('filter', filter);
       
-      const response = await fetch(`http://localhost:4000/api/admin/users?${params}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/users?${params}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

@@ -3,6 +3,8 @@ import { TrendingUp, Users, Calendar, BarChart3, RefreshCw } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext';
 import { DateFilter } from '@/components/DateFilter';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface RetentionData {
   totalUsers: number;
   day1RetentionRate: number;
@@ -26,7 +28,7 @@ export function AdminRetentionAnalytics() {
     setError('');
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/analytics/retention', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/analytics/retention`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

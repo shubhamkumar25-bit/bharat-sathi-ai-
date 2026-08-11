@@ -239,7 +239,7 @@ export function ChatPage() {
             </button>
           </div>
 
-          <div className="flex min-h-[400px] max-h-[50vh] flex-col space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950 sm:max-h-[30rem] sm:p-4">
+          <div ref={scrollRef} className="flex min-h-[400px] max-h-[50vh] flex-col space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950 sm:max-h-[30rem] sm:p-4">
             {loadingHistory ? (
               <div className="flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-300">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -331,6 +331,11 @@ export function ChatPage() {
                 }}
                 className="focus-ring w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-white"
                 placeholder="Type in any language (Hindi, Hinglish, Tamil, Telugu, Bengali, English...)"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                lang="en"
               />
               <button
                 type="button"

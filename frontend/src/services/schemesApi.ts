@@ -3,7 +3,7 @@
  * Handles API calls to the backend for database-driven scheme matching
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // Import the SchemeMatch type from the types file to ensure consistency
 import type { SchemeMatch as EligibilitySchemeMatch } from '../types/eligibility';

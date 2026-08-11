@@ -3,6 +3,8 @@ import { BarChart3, TrendingUp, Users, Activity, RefreshCw, Download } from 'luc
 import { useAuth } from '@/context/AuthContext';
 import { DateFilter } from '@/components/DateFilter';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface FeatureStats {
   feature: string;
   uniqueUsers: number;
@@ -25,7 +27,7 @@ export function AdminFeatureAnalytics() {
     setError('');
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/analytics/feature-usage', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/analytics/feature-usage`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -67,7 +69,7 @@ export function AdminFeatureAnalytics() {
   const handleExport = async () => {
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/export?type=feature-usage', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/export?type=feature-usage`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

@@ -3,6 +3,8 @@ import { Search, FileText, Users, Bookmark, TrendingUp, BarChart3, CheckCircle, 
 import { useAuth } from '@/context/AuthContext';
 import { DateFilter } from '@/components/DateFilter';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
 interface SchemeStats {
   totalSearches: number;
   eligibilityChecks: number;
@@ -29,7 +31,7 @@ export function AdminSchemeAnalytics() {
     setError('');
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/analytics/government-schemes', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/analytics/government-schemes`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -55,7 +57,7 @@ export function AdminSchemeAnalytics() {
   const handleExport = async () => {
     try {
       const token = await user?.getIdToken();
-      const response = await fetch('http://localhost:4000/api/admin/export?type=government-schemes', {
+      const response = await fetch(`${API_BASE_URL}/api/admin/export?type=government-schemes`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

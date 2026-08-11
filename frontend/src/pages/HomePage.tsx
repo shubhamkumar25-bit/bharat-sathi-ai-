@@ -162,7 +162,7 @@ export function HomePage() {
               {[
                 ['6+', 'Ready screens'],
                 ['1', 'Responsive shell'],
-                ['5', ' days']
+                ['30', ' days']
               ].map(([value, label]) => (
                 <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center dark:border-slate-800 dark:bg-slate-950">
                   <div className="text-2xl font-semibold text-slate-950 dark:text-white">{value}</div>
