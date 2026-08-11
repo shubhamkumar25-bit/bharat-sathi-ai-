@@ -1,8 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
+// Uses Gemini REST API directly — works with both AIzaSy and AQ. format keys
 
 const MODEL = "gemini-2.5-flash";
+const BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-function getClient() {
+function getApiKey() {
   const apiKey =
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_AI_API_KEY ||
@@ -10,25 +11,19 @@ function getClient() {
 
   if (!apiKey) {
     throw new Error(
-      "Gemini API Key not found. Please set GEMINI_API_KEY in your .env file."
+      "Gemini API Key not found. Please set GOOGLE_AI_API_KEY in your .env file."
     );
   }
-
-  return new GoogleGenAI({
-    apiKey,
-  });
+  return apiKey;
 }
 
 function buildHistory(history = []) {
   return history
     .map((item) => {
       const role =
-        item.role === "assistant"
-          ? "Assistant"
-          : item.role === "system"
-          ? "System"
-          : "User";
-
+        item.role === "assistant" ? "Assistant"
+        : item.role === "system"  ? "System"
+        : "User";
       return `${role}: ${item.content}`;
     })
     .join("\n");
@@ -42,28 +37,50 @@ export async function generateGeminiResponse({
   history = [],
   systemInstruction,
 }) {
-  const ai = getClient();
+  const apiKey = getApiKey();
 
   const conversation = buildHistory(history);
-
-  const finalPrompt = conversation
-    ? `${conversation}\nUser: ${prompt}`
-    : prompt;
+  const finalPrompt  = conversation ? `${conversation}\nUser: ${prompt}` : prompt;
 
   const effectiveInstruction = systemInstruction
     ? `${MULTILINGUAL_SYSTEM_INSTRUCTION}\n\nAdditional domain guidance:\n${systemInstruction}`
     : `${MULTILINGUAL_SYSTEM_INSTRUCTION}\n\nHelp Indian students, job seekers, farmers, workers and citizens with practical, actionable guidance.`;
 
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: finalPrompt,
-    config: {
-      systemInstruction: effectiveInstruction,
+  const body = {
+    system_instruction: {
+      parts: [{ text: effectiveInstruction }],
+    },
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: finalPrompt }],
+      },
+    ],
+    generationConfig: {
       temperature: 0.5,
     },
+  };
+
+  const url = `${BASE_URL}/${MODEL}:generateContent?key=${apiKey}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 
-  return response.text;
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+
+  // Extract text from response
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("Gemini returned empty response.");
+
+  return text;
 }
 
 export async function generateResumeAssist(input) {
