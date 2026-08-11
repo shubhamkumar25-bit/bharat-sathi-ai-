@@ -4,6 +4,11 @@ import { observeAuthState, loginWithEmail, logout, registerWithEmail, loginWithG
 import { syncProfile } from '@/services/backend';
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { firestoreDb, firebaseAuth } from '@/lib/firebase';
+import {
+  createUserProfile,
+  updateUserLoginTimestamp,
+  recordLoginEvent,
+} from '@/services/analytics';
 
 type UserRole = 'guest' | 'user' | 'admin' | 'super_admin';
 
@@ -132,13 +137,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role,
       initializing,
       login: async (email, password) => {
-        await loginWithEmail(email, password);
+        const cred = await loginWithEmail(email, password);
+        // Update timestamps and record real login event on success
+        const loggedInUser = cred.user;
+        await updateUserLoginTimestamp(loggedInUser.uid);
+        await recordLoginEvent(
+          loggedInUser.uid,
+          loggedInUser.displayName || email.split('@')[0],
+          loggedInUser.email || email
+        );
       },
       register: async (email, password) => {
-        await registerWithEmail(email, password);
+        const cred = await registerWithEmail(email, password);
+        // Write real user document to Firestore on signup
+        const newUser = cred.user;
+        await createUserProfile(
+          newUser.uid,
+          newUser.displayName || email.split('@')[0],
+          newUser.email || email
+        );
       },
       loginWithGoogle: async () => {
-        await loginWithGoogle();
+        const cred = await loginWithGoogle();
+        const googleUser = cred.user;
+        // Check if user doc already exists — if not, it's a new signup
+        if (firestoreDb) {
+          const userRef = doc(firestoreDb, 'users', googleUser.uid);
+          const snap = await getDoc(userRef);
+          if (!snap.exists()) {
+            // New Google user — create full profile
+            await createUserProfile(
+              googleUser.uid,
+              googleUser.displayName || googleUser.email?.split('@')[0] || 'User',
+              googleUser.email || ''
+            );
+          } else {
+            // Existing Google user — just update login timestamps
+            await updateUserLoginTimestamp(googleUser.uid);
+          }
+        }
+        // Always record login event
+        await recordLoginEvent(
+          googleUser.uid,
+          googleUser.displayName || googleUser.email?.split('@')[0] || 'User',
+          googleUser.email || ''
+        );
       },
       signOut: async () => {
         await logout();
