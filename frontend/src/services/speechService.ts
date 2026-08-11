@@ -31,20 +31,14 @@ export function detectTextLocale(text: string): string {
 /**
  * Choose the SpeechRecognition lang for a NEW voice session.
  *
- * Strategy (per-session, never carries over from previous messages):
- *  1. If the user has already typed something in the draft box → detect it
- *  2. Otherwise → default to "en-IN" so English and Hinglish are preserved
- *
- * NOTE: We intentionally do NOT look at previous chat messages here.
- *       Each voice session must be language-independent so that switching
- *       from Hindi speech to English speech (or vice versa) always works.
+ * Priority order:
+ *  1. voiceLang explicitly selected by user (e.g. "hi-IN" or "en-IN") → use it directly
+ *  2. Something already typed in draft → detect from that text
+ *  3. Empty draft, no selection → default "en-IN"
  */
-export function detectSpeechInputLang(draft: string): string {
-  if (draft.trim()) {
-    return detectTextLocale(draft);
-  }
-  // Fresh session with empty draft → always en-IN (browser handles Hindi too
-  // via en-IN on Chrome, and the transcript is kept as-is without translation)
+export function detectSpeechInputLang(draft: string, voiceLang?: string): string {
+  if (voiceLang) return voiceLang;
+  if (draft.trim()) return detectTextLocale(draft);
   return "en-IN";
 }
 

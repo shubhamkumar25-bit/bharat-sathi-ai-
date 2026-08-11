@@ -57,12 +57,14 @@ export function ChatPage() {
   const [error, setError] = useState('');
   const [listening, setListening] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [voiceLang, setVoiceLang] = useState<'en-IN' | 'hi-IN'>('en-IN');
   const [isPaused, setIsPaused] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  const lastAssistantMessage = useMemo(() => [...messages].reverse().find((message) => message.role === 'assistant'), [messages]);
+  const lastAssistantMessage = useMemo
 
   useEffect(() => {
     if (!conversationId) {
@@ -122,8 +124,8 @@ export function ChatPage() {
       return;
     }
 
-    // Detect lang from current draft only — never from previous messages
-    recognition.lang = detectSpeechInputLang(draft);
+    // Detect lang from current draft or user-selected voiceLang
+    recognition.lang = detectSpeechInputLang(draft, voiceLang);
     recognition.interimResults = true;
     recognition.continuous = false;
 
@@ -241,6 +243,7 @@ export function ChatPage() {
     setListening(false);
     setSpeakingMessageId(null);
     setIsPaused(false);
+    setVoiceLang('en-IN');
 
     // 5. Clear persisted conversation from localStorage
     window.localStorage.removeItem(conversationKey);
@@ -268,6 +271,21 @@ export function ChatPage() {
               <Mic className={`h-4 w-4 text-saffron-500 ${listening ? 'animate-pulse' : ''}`} />
               {listening ? 'Listening...' : 'Voice Input'}
             </button>
+
+            {/* Voice language toggle — EN / HI */}
+            <button
+              type="button"
+              onClick={() => setVoiceLang((prev) => prev === 'en-IN' ? 'hi-IN' : 'en-IN')}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition sm:px-4 sm:py-2 sm:text-sm ${
+                voiceLang === 'hi-IN'
+                  ? 'border-saffron-400 bg-saffron-50 text-saffron-700 dark:border-saffron-600 dark:bg-saffron-950/40 dark:text-saffron-300'
+                  : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300'
+              }`}
+              title="Toggle voice input language between English and Hindi"
+            >
+              {voiceLang === 'hi-IN' ? '🎙 हिंदी' : '🎙 English'}
+            </button>
+
             <button type="button" onClick={handleClear} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium dark:border-slate-800 dark:bg-slate-950 sm:px-4 sm:py-2 sm:text-sm">
               <RotateCcw className="h-4 w-4 text-saffron-500" />
               Clear Chat
