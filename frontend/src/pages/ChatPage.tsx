@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Mic, MessagesSquare, Send, Volume2, RotateCcw, Pause, Play, Loader2 } from 'lucide-react';
 import { clearChatConversation, loadChatHistory, sendChatMessage, type ChatApiMessage } from '@/services/backend';
-import { speak, stopSpeaking, isSpeaking, detectTextLocale } from '@/services/speechService';
+import { speak, stopSpeaking, isSpeaking, detectTextLocale, detectSpeechInputLang } from '@/services/speechService';
 
 const welcomeMessage: ChatApiMessage = {
   id: 'welcome',
@@ -113,7 +113,10 @@ export function ChatPage() {
       return;
     }
 
-    recognition.lang = 'hi-IN';
+    recognition.lang = detectSpeechInputLang(
+      draft,
+      messages.filter((m) => m.role === 'user').map((m) => m.content)
+    );
     recognition.interimResults = true;
     recognition.continuous = false;
     recognition.onresult = (event: SpeechRecognitionEventLike) => {

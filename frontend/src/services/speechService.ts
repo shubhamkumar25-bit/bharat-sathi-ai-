@@ -1,103 +1,102 @@
+/**
+ * Detect the BCP-47 locale of a text string based on Unicode script ranges.
+ *
+ * Fallback order:
+ *  • If a non-Latin script is dominant  → return that language's locale
+ *  • If text is pure Latin (English or Hinglish) → return "en-IN"
+ *  • Empty string → "en-IN"  (was wrongly "hi-IN" before)
+ */
 export function detectTextLocale(text: string): string {
-    if (!text?.trim()) return "hi-IN";
+  if (!text?.trim()) return "en-IN";
 
-    const scriptCounts = [
-        {
-            lang: "hi-IN",
-            count: (text.match(/[\u0900-\u097F]/g) || []).length,
-        },
-        {
-            lang: "bn-IN",
-            count: (text.match(/[\u0980-\u09FF]/g) || []).length,
-        },
-        {
-            lang: "pa-IN",
-            count: (text.match(/[\u0A00-\u0A7F]/g) || []).length,
-        },
-        {
-            lang: "gu-IN",
-            count: (text.match(/[\u0A80-\u0AFF]/g) || []).length,
-        },
-        {
-            lang: "or-IN",
-            count: (text.match(/[\u0B00-\u0B7F]/g) || []).length,
-        },
-        {
-            lang: "ta-IN",
-            count: (text.match(/[\u0B80-\u0BFF]/g) || []).length,
-        },
-        {
-            lang: "te-IN",
-            count: (text.match(/[\u0C00-\u0C7F]/g) || []).length,
-        },
-        {
-            lang: "kn-IN",
-            count: (text.match(/[\u0C80-\u0CFF]/g) || []).length,
-        },
-        {
-            lang: "ml-IN",
-            count: (text.match(/[\u0D00-\u0D7F]/g) || []).length,
-        },
-        {
-            lang: "ur-IN",
-            count: (text.match(/[\u0600-\u06FF]/g) || []).length,
-        },
-    ];
+  const scriptCounts = [
+    { lang: "hi-IN", count: (text.match(/[\u0900-\u097F]/g) || []).length }, // Devanagari
+    { lang: "bn-IN", count: (text.match(/[\u0980-\u09FF]/g) || []).length }, // Bengali
+    { lang: "pa-IN", count: (text.match(/[\u0A00-\u0A7F]/g) || []).length }, // Gurmukhi
+    { lang: "gu-IN", count: (text.match(/[\u0A80-\u0AFF]/g) || []).length }, // Gujarati
+    { lang: "or-IN", count: (text.match(/[\u0B00-\u0B7F]/g) || []).length }, // Odia
+    { lang: "ta-IN", count: (text.match(/[\u0B80-\u0BFF]/g) || []).length }, // Tamil
+    { lang: "te-IN", count: (text.match(/[\u0C00-\u0C7F]/g) || []).length }, // Telugu
+    { lang: "kn-IN", count: (text.match(/[\u0C80-\u0CFF]/g) || []).length }, // Kannada
+    { lang: "ml-IN", count: (text.match(/[\u0D00-\u0D7F]/g) || []).length }, // Malayalam
+    { lang: "ur-IN", count: (text.match(/[\u0600-\u06FF]/g) || []).length }, // Arabic/Urdu
+  ];
 
-    const detected = scriptCounts.reduce((highest, current) =>
-        current.count > highest.count ? current : highest
-    );
+  const best = scriptCounts.reduce((a, b) => (b.count > a.count ? b : a));
 
-    return detected.count > 0 ? detected.lang : "en-IN";
+  // Only use a non-Latin locale when there are actual non-Latin characters
+  return best.count > 0 ? best.lang : "en-IN";
+}
+
+/**
+ * Choose the best SpeechRecognition lang based on the current draft or
+ * the last few messages in the conversation.
+ *
+ * Strategy:
+ *  • If we have text already typed → detect it directly
+ *  • Otherwise scan last 3 user messages for any Devanagari → hi-IN
+ *  • Otherwise default to "en-IN" so English and Hinglish are preserved
+ */
+export function detectSpeechInputLang(
+  draft: string,
+  recentUserMessages: string[]
+): string {
+  // 1. If there is something in the draft box, use it
+  if (draft.trim()) {
+    return detectTextLocale(draft);
+  }
+
+  // 2. Check last 3 user messages for non-Latin scripts
+  const context = recentUserMessages.slice(-3).join(" ");
+  if (context.trim()) {
+    const locale = detectTextLocale(context);
+    if (locale !== "en-IN") return locale; // Non-Latin found → use it
+  }
+
+  // 3. Safe default — preserves English and Hinglish transcripts
+  return "en-IN";
 }
 
 export function speak(
-    text: string,
-    forceLang?: string,
-    onEnd?: () => void
+  text: string,
+  forceLang?: string,
+  onEnd?: () => void
 ): void {
-    if (
-        typeof window === "undefined" ||
-        !("speechSynthesis" in window) ||
-        !text?.trim()
-    ) {
-        return;
-    }
+  if (
+    typeof window === "undefined" ||
+    !("speechSynthesis" in window) ||
+    !text?.trim()
+  ) {
+    return;
+  }
 
-    // Stop any previous voice before starting a new one
-    window.speechSynthesis.cancel();
+  window.speechSynthesis.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(text);
+  const utterance = new SpeechSynthesisUtterance(text);
 
-    utterance.lang = forceLang || detectTextLocale(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    utterance.volume = 1;
+  // Detect the correct locale from the actual text content
+  utterance.lang = forceLang || detectTextLocale(text);
+  utterance.rate = 0.95;
+  utterance.pitch = 1;
+  utterance.volume = 1;
 
-    if (onEnd) {
-        utterance.onend = onEnd;
-        utterance.onerror = onEnd;
-    }
+  if (onEnd) {
+    utterance.onend = onEnd;
+    utterance.onerror = onEnd;
+  }
 
-    window.speechSynthesis.speak(utterance);
+  window.speechSynthesis.speak(utterance);
 }
 
 export function stopSpeaking(): void {
-    if (
-        typeof window !== "undefined" &&
-        "speechSynthesis" in window
-    ) {
-        window.speechSynthesis.cancel();
-    }
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
 }
 
 export function isSpeaking(): boolean {
-    if (
-        typeof window === "undefined" ||
-        !("speechSynthesis" in window)
-    ) {
-        return false;
-    }
-
-    return window.speechSynthesis.speaking;
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return false;
+  }
+  return window.speechSynthesis.speaking;
 }
