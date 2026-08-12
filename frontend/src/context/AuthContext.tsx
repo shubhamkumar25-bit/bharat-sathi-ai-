@@ -145,50 +145,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       initializing,
       login: async (email, password) => {
         const cred = await loginWithEmail(email, password);
-        // Update timestamps and record real login event on success
         const loggedInUser = cred.user;
-        await updateUserLoginTimestamp(loggedInUser.uid);
-        await recordLoginEvent(
-          loggedInUser.uid,
-          loggedInUser.displayName || email.split('@')[0],
-          loggedInUser.email || email
-        );
+        try {
+          await updateUserLoginTimestamp(loggedInUser.uid);
+          await recordLoginEvent(
+            loggedInUser.uid,
+            loggedInUser.displayName || email.split('@')[0],
+            loggedInUser.email || email
+          );
+        } catch (err) {
+          console.warn('Analytics logging skipped:', err);
+        }
       },
       register: async (email, password) => {
         const cred = await registerWithEmail(email, password);
-        // Write real user document to Firestore on signup
         const newUser = cred.user;
-        await createUserProfile(
-          newUser.uid,
-          newUser.displayName || email.split('@')[0],
-          newUser.email || email
-        );
+        try {
+          await createUserProfile(
+            newUser.uid,
+            newUser.displayName || email.split('@')[0],
+            newUser.email || email
+          );
+        } catch (err) {
+          console.warn('Profile creation skipped:', err);
+        }
       },
       loginWithGoogle: async () => {
         const cred = await loginWithGoogle();
         const googleUser = cred.user;
-        // Check if user doc already exists — if not, it's a new signup
-        if (firestoreDb) {
-          const userRef = doc(firestoreDb, 'users', googleUser.uid);
-          const snap = await getDoc(userRef);
-          if (!snap.exists()) {
-            // New Google user — create full profile
-            await createUserProfile(
-              googleUser.uid,
-              googleUser.displayName || googleUser.email?.split('@')[0] || 'User',
-              googleUser.email || ''
-            );
-          } else {
-            // Existing Google user — just update login timestamps
-            await updateUserLoginTimestamp(googleUser.uid);
+        try {
+          if (firestoreDb) {
+            const userRef = doc(firestoreDb, 'users', googleUser.uid);
+            const snap = await getDoc(userRef);
+            if (!snap.exists()) {
+              await createUserProfile(
+                googleUser.uid,
+                googleUser.displayName || googleUser.email?.split('@')[0] || 'User',
+                googleUser.email || ''
+              );
+            } else {
+              await updateUserLoginTimestamp(googleUser.uid);
+            }
           }
+          await recordLoginEvent(
+            googleUser.uid,
+            googleUser.displayName || googleUser.email?.split('@')[0] || 'User',
+            googleUser.email || ''
+          );
+        } catch (err) {
+          console.warn('Google login profile sync skipped:', err);
         }
-        // Always record login event
-        await recordLoginEvent(
-          googleUser.uid,
-          googleUser.displayName || googleUser.email?.split('@')[0] || 'User',
-          googleUser.email || ''
-        );
       },
       signOut: async () => {
         await logout();

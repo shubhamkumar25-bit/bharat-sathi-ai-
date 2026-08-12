@@ -9,6 +9,7 @@
  *   featureEvents/{id}     - one doc per feature interaction
  *
  * NEVER stores passwords or auth credentials.
+ * All functions are safely wrapped in try-catch to prevent permission errors from breaking UX.
  */
 
 import {
@@ -37,19 +38,23 @@ export async function createUserProfile(uid: string, name: string, email: string
   const database = db();
   if (!database) return;
 
-  await setDoc(
-    doc(database, 'users', uid),
-    {
-      uid,
-      name: name || '',
-      email: email || '',
-      role: 'user',
-      createdAt: serverTimestamp(),
-      lastLoginAt: serverTimestamp(),
-      lastActiveAt: serverTimestamp(),
-    },
-    { merge: false } // fresh doc — do NOT merge so createdAt is never overwritten
-  );
+  try {
+    await setDoc(
+      doc(database, 'users', uid),
+      {
+        uid,
+        name: name || '',
+        email: email || '',
+        role: 'user',
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp(),
+      },
+      { merge: false } // fresh doc — do NOT merge so createdAt is never overwritten
+    );
+  } catch (err) {
+    console.warn('createUserProfile restricted or failed:', err);
+  }
 }
 
 /**
@@ -60,14 +65,18 @@ export async function updateUserLoginTimestamp(uid: string) {
   const database = db();
   if (!database) return;
 
-  await setDoc(
-    doc(database, 'users', uid),
-    {
-      lastLoginAt: serverTimestamp(),
-      lastActiveAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  try {
+    await setDoc(
+      doc(database, 'users', uid),
+      {
+        lastLoginAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('updateUserLoginTimestamp restricted or failed:', err);
+  }
 }
 
 /**
@@ -78,11 +87,15 @@ export async function touchUserActive(uid: string) {
   const database = db();
   if (!database) return;
 
-  await setDoc(
-    doc(database, 'users', uid),
-    { lastActiveAt: serverTimestamp() },
-    { merge: true }
-  );
+  try {
+    await setDoc(
+      doc(database, 'users', uid),
+      { lastActiveAt: serverTimestamp() },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('touchUserActive restricted or failed:', err);
+  }
 }
 
 // ─── Login events ───────────────────────────────────────────────────────────
@@ -95,13 +108,17 @@ export async function recordLoginEvent(uid: string, name: string, email: string)
   const database = db();
   if (!database) return;
 
-  await addDoc(collection(database, 'loginEvents'), {
-    uid,
-    name: name || '',
-    email: email || '',
-    timestamp: serverTimestamp(),
-    type: 'login',
-  });
+  try {
+    await addDoc(collection(database, 'loginEvents'), {
+      uid,
+      name: name || '',
+      email: email || '',
+      timestamp: serverTimestamp(),
+      type: 'login',
+    });
+  } catch (err) {
+    console.warn('recordLoginEvent restricted or failed:', err);
+  }
 }
 
 // ─── Page views ─────────────────────────────────────────────────────────────
@@ -114,11 +131,15 @@ export async function recordPageView(page: string, uid: string | null) {
   const database = db();
   if (!database) return;
 
-  await addDoc(collection(database, 'pageViews'), {
-    uid: uid ?? null,
-    page,
-    timestamp: serverTimestamp(),
-  });
+  try {
+    await addDoc(collection(database, 'pageViews'), {
+      uid: uid ?? null,
+      page,
+      timestamp: serverTimestamp(),
+    });
+  } catch (err) {
+    console.warn('recordPageView restricted or failed:', err);
+  }
 }
 
 // ─── Feature events ─────────────────────────────────────────────────────────
@@ -136,10 +157,14 @@ export async function recordFeatureEvent(
   const database = db();
   if (!database) return;
 
-  await addDoc(collection(database, 'featureEvents'), {
-    uid,
-    feature,
-    action,
-    timestamp: serverTimestamp(),
-  });
+  try {
+    await addDoc(collection(database, 'featureEvents'), {
+      uid,
+      feature,
+      action,
+      timestamp: serverTimestamp(),
+    });
+  } catch (err) {
+    console.warn('recordFeatureEvent restricted or failed:', err);
+  }
 }
