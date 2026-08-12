@@ -77,26 +77,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (firestoreDb) {
-          const userRef = doc(firestoreDb, 'users', currentUser.uid);
-          const snap = await getDoc(userRef);
-          const firestoreRole = snap.exists() && typeof snap.data().role === 'string' ? snap.data().role : null;
-          const resolvedRole = effectiveRole === 'user' ? firestoreRole : effectiveRole;
-          const normalizedRole = resolvedRole === 'admin' || resolvedRole === 'super_admin' ? resolvedRole : 'user';
+          try {
+            const userRef = doc(firestoreDb, 'users', currentUser.uid);
+            const snap = await getDoc(userRef);
+            const firestoreRole = snap.exists() && typeof snap.data().role === 'string' ? snap.data().role : null;
+            const resolvedRole = effectiveRole === 'user' ? firestoreRole : effectiveRole;
+            const normalizedRole = resolvedRole === 'admin' || resolvedRole === 'super_admin' ? resolvedRole : 'user';
 
-          await setDoc(userRef, {
-            role: normalizedRole,
-            email: currentUser.email || '',
-            displayName: currentUser.displayName || '',
-            photoURL: currentUser.photoURL || ''
-          }, { merge: true });
+            await setDoc(userRef, {
+              role: normalizedRole,
+              email: currentUser.email || '',
+              displayName: currentUser.displayName || '',
+              photoURL: currentUser.photoURL || ''
+            }, { merge: true });
 
-          roleUnsubscribe = onSnapshot(userRef, (docSnap) => {
-            const docRole = docSnap.exists() && typeof docSnap.data().role === 'string' ? docSnap.data().role : null;
-            const effectiveDocRole = docRole === 'admin' || docRole === 'super_admin' ? docRole : 'user';
-            setRole(effectiveDocRole);
-          });
+            roleUnsubscribe = onSnapshot(userRef, (docSnap) => {
+              const docRole = docSnap.exists() && typeof docSnap.data().role === 'string' ? docSnap.data().role : null;
+              const effectiveDocRole = docRole === 'admin' || docRole === 'super_admin' ? docRole : 'user';
+              setRole(effectiveDocRole);
+            }, (error) => {
+              console.warn('Firestore role subscription restricted:', error);
+            });
 
-          setRole(normalizedRole);
+            setRole(normalizedRole);
+          } catch (firestoreErr) {
+            console.warn('Firestore profile sync restricted:', firestoreErr);
+            setRole(effectiveRole);
+          }
         } else {
           setRole(effectiveRole);
         }

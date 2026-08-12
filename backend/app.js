@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { authRoutes } from './routes/authRoutes.js';
@@ -13,7 +13,7 @@ import locationRoutes from './routes/locationRoutes.js';
 import { adminRoutes } from './routes/adminRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorMiddleware.js';
 
-dotenv.config();
+
 
 export const app = express();
 
